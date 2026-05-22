@@ -49,7 +49,7 @@ jobs:
           $stage = "release-staging"
           New-Item -ItemType Directory -Force -Path "$stage/VirtualTCU" | Out-Null
           Copy-Item -Recurse -Force "dist/VirtualTCU/*" "$stage/VirtualTCU/"
-          Copy-Item -Force "release/Launch VirtualTCU.bat" "$stage/"
+          Copy-Item -Force "packaging/Launch VirtualTCU.bat" "$stage/"
           Compress-Archive -Path "$stage/*" -DestinationPath "VirtualTCU-$version-win64.zip" -Force
 
       - name: Upload release asset
