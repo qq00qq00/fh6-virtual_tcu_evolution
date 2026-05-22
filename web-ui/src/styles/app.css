@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+@import './ui.css';
+
+@theme {
+  --color-tcu-bg-0: #0a0d12;
+  --color-tcu-bg-1: #121821;
+  --color-tcu-bg-2: #1a2230;
+  --color-tcu-bg-3: #232d3e;
+  --color-tcu-border: #2a3548;
+  --color-tcu-txt: #e8ecf3;
+  --color-tcu-txt-muted: #aab4c5;
+  --color-tcu-txt-dim: #6b7689;
+  --color-accent: #4ade80;
+  --color-accent-2: #22d3ee;
+  --color-warn: #fbbf24;
+  --color-danger: #ef4444;
+  --color-mode-comfort: #22d3ee;
+  --color-mode-dynamic: #a78bfa;
+  --color-mode-race: #4ade80;
+  --color-mode-drift: #ef4444;
+  --color-mode-offroad: #f97316;
+  --color-mode-manual: #94a3b8;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #app {
+    @apply h-full min-h-screen overflow-x-hidden bg-tcu-bg-0 font-sans text-tcu-txt antialiased;
+  }
+
+  #app {
+    @apply grid min-h-screen grid-rows-[auto_1fr_auto];
+  }
+
+  kbd {
+    @apply mx-0.5 rounded bg-tcu-bg-3 px-1.5 py-0.5 font-mono text-[11px] text-tcu-txt;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-tcu-bg-0;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded bg-tcu-bg-3 hover:bg-tcu-border;
+  }
+}

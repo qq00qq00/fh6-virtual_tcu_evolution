@@ -1,0 +1,81 @@
+@layer components {
+  .ui-section-title {
+    @apply mb-3 text-[11px] font-semibold uppercase tracking-widest text-tcu-txt-dim;
+  }
+
+  .ui-col {
+    @apply overflow-y-auto bg-tcu-bg-0 p-5;
+  }
+
+  .ui-card {
+    @apply rounded-xl border border-tcu-border bg-tcu-bg-1 p-4;
+  }
+
+  .ui-card-sm {
+    @apply rounded-lg border border-tcu-border bg-tcu-bg-1 p-3;
+  }
+
+  .ui-card-label {
+    @apply mb-2 text-[11px] uppercase tracking-widest text-tcu-txt-dim;
+  }
+
+  .ui-mono {
+    @apply font-mono;
+  }
+
+  .ui-action-btn {
+    @apply mb-2 w-full cursor-pointer rounded-md border border-tcu-border bg-tcu-bg-1 px-2.5 py-2.5 text-xs font-medium text-tcu-txt-muted transition hover:bg-tcu-bg-2 hover:text-tcu-txt disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .ui-action-btn--compact {
+    @apply mb-0 w-auto px-4;
+  }
+
+  .ui-action-btn-primary {
+    @apply mb-2 w-full cursor-pointer rounded-md border border-accent bg-accent px-2.5 py-2.5 text-xs font-medium text-black transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .ui-action-btn-primary.ui-action-btn--compact {
+    @apply mb-0 w-auto px-4;
+  }
+
+  .ui-action-btn-danger {
+    @apply mb-2 w-full cursor-pointer rounded-md border border-danger px-2.5 py-2.5 text-xs font-medium text-danger transition hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .ui-badge-calibrated {
+    @apply inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-accent/15 text-accent;
+  }
+
+  .ui-badge-learning {
+    @apply inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-warn/15 text-warn;
+  }
+
+  .ui-tab {
+    @apply cursor-pointer border-b-2 border-transparent px-3 py-2 text-xs text-tcu-txt-dim transition select-none hover:text-tcu-txt;
+  }
+
+  .ui-tab-active {
+    @apply border-accent text-accent;
+  }
+
+  .ui-stat-row {
+    @apply flex items-baseline justify-between border-b border-dotted border-tcu-border py-1 text-xs last:border-b-0;
+  }
+
+  .ui-toggle-row {
+    @apply flex items-center justify-between border-b border-tcu-border py-2.5 last:border-b-0;
+  }
+
+  .ui-setting-row {
+    @apply mb-2.5 grid grid-cols-[1fr_auto] items-center gap-3;
+  }
+
+  .ui-range-input {
+    @apply col-span-full mt-1 h-1.5 w-full accent-accent;
+  }
+
+  .ui-hotkey-input {
+    @apply w-20 rounded border border-tcu-border bg-tcu-bg-3 px-2 py-1 text-center font-mono text-[11px] uppercase text-tcu-txt;
+  }
+}
