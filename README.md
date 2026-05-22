@@ -34,9 +34,11 @@ After launch, open **http://127.0.0.1:8765** in your browser for the live dashbo
 ### Option A — Download release (no Python / Node)
 
 1. Open **[GitHub Releases](https://github.com/Quirrel-zh/fh6-virtual_tcu/releases)** and download the latest `VirtualTCU-*-win64.zip`.
-2. Extract anywhere (e.g. `C:\Games\VirtualTCU\`).
-3. Run **`VirtualTCU.exe`** as **Administrator** (required for global key injection).
+2. **Extract the entire zip** (do not run the exe from inside the zip viewer).
+3. Run **`Launch VirtualTCU.bat`** or **`VirtualTCU\VirtualTCU.exe`** as **Administrator** (required for global key injection).
 4. Open **http://127.0.0.1:8765** in your browser.
+
+Keep the **`VirtualTCU` folder intact** — do not move `VirtualTCU.exe` without the `_internal` directory beside it.
 
 Settings, profiles, and logs are stored under **`%APPDATA%\VirtualTCU\`** (`tcu_config.json`, `tcu_profiles.json`, `logs\`).
 
@@ -163,6 +165,14 @@ virtualTCU/
 ---
 
 ## Troubleshooting
+
+### Release exe window flashes and closes
+
+- **Extract the full zip** — the exe needs the `_internal` folder next to it.
+- **Close other Virtual TCU instances** (including `python -m virtual_tcu` from source) — port **5555** / **8765** can only be used once.
+- Run from **cmd** to see the error: `cd path\to\VirtualTCU` then `VirtualTCU.exe` (new builds pause on failure).
+- Check **`%APPDATA%\VirtualTCU\crash.log`** if present.
+- Run **as Administrator**.
 
 ### Dashboard shows offline / waiting for Forza
 

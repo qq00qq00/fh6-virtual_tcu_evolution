@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
 project_root = Path(SPECPATH)
@@ -14,36 +14,31 @@ if not dist_data.is_dir():
         f"Missing {dist_data} — run: cd web-ui && npm install && npm run build"
     )
 
+_kb_datas, _kb_binaries, _kb_hidden = collect_all("keyboard")
+_aio_datas, _aio_binaries, _aio_hidden = collect_all("aiohttp")
+
 hiddenimports = (
-    collect_submodules("aiohttp")
+    list(_kb_hidden)
+    + list(_aio_hidden)
     + collect_submodules("multidict")
     + collect_submodules("yarl")
     + collect_submodules("frozenlist")
     + collect_submodules("aiosignal")
+    + collect_submodules("virtual_tcu")
     + [
-        "virtual_tcu",
-        "virtual_tcu.app",
+        "virtual_tcu.bootstrap",
         "virtual_tcu.paths",
         "virtual_tcu.deps",
-        "virtual_tcu.config.store",
-        "virtual_tcu.config.constants",
-        "virtual_tcu.storage.profiles",
-        "virtual_tcu.telemetry.logger",
-        "virtual_tcu.telemetry.receiver",
-        "virtual_tcu.telemetry.parser",
-        "virtual_tcu.logic.tcu",
-        "virtual_tcu.web.server",
-        "virtual_tcu.input.keyboard",
+        "virtual_tcu.state.shift_history",
         "keyboard",
-        "pypresence",
     ]
 )
 
 a = Analysis(
     ["virtual_tcu.py"],
     pathex=[str(project_root)],
-    binaries=[],
-    datas=[(str(dist_data), "virtual_tcu/web/dist")],
+    binaries=_kb_binaries + _aio_binaries,
+    datas=[(str(dist_data), "virtual_tcu/web/dist")] + _kb_datas + _aio_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

@@ -129,8 +129,12 @@ def main():
 
     receiver = TelemetryReceiver(logger)
     if not receiver.start():
-        print(f"  [X] UDP bind failed: {receiver.error_msg}")
-        sys.exit(1)
+        from virtual_tcu.bootstrap import report_fatal
+
+        report_fatal(
+            f"UDP port {Cfg.UDP_PORT} bind failed: {receiver.error_msg}\n"
+            "  Close other Virtual TCU / python instances, or change the port in config."
+        )
     print(f"  [OK] UDP listening on 0.0.0.0:{Cfg.UDP_PORT}")
 
     kb = VirtualKeyboard()
@@ -145,6 +149,18 @@ def main():
         asyncio.run(main_async(receiver, tcu, config, logger))
     except KeyboardInterrupt:
         print("\n  Shutting down...")
+    except OSError as e:
+        from virtual_tcu.bootstrap import report_fatal
+
+        report_fatal(
+            f"Web UI port {Cfg.WEB_PORT} unavailable: {e}\n"
+            "  Close other apps using this port (another Virtual TCU instance?).",
+            exc=e,
+        )
+    except Exception as e:
+        from virtual_tcu.bootstrap import report_fatal
+
+        report_fatal("Unexpected error while running.", exc=e)
     finally:
         logger.stop()
         receiver.stop()

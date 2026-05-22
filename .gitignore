@@ -39,6 +39,8 @@ logs/
 /build/
 /dist/
 /release/
+/_internal/
+/VirtualTCU.exe
 *.spec.bak
 
 # ── IDE & OS ───────────────────────────────────────────────────────────

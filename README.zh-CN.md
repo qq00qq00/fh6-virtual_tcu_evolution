@@ -34,9 +34,11 @@
 ### 方式 A — 下载 Release（无需 Python / Node）
 
 1. 打开 **[GitHub Releases](https://github.com/Quirrel-zh/fh6-virtual_tcu/releases)**，下载最新的 `VirtualTCU-*-win64.zip`。
-2. 解压到任意目录（例如 `C:\Games\VirtualTCU\`）。
-3. 以**管理员**身份运行 **`VirtualTCU.exe`**（全局按键注入需要管理员权限）。
+2. **完整解压 zip**（不要在压缩包预览里直接双击 exe）。
+3. 以**管理员**身份运行 **`Launch VirtualTCU.bat`** 或 **`VirtualTCU\VirtualTCU.exe`**。
 4. 在浏览器打开 **http://127.0.0.1:8765**。
+
+请保持 **`VirtualTCU` 文件夹完整** — 不要单独移动 exe，必须保留旁边的 `_internal` 目录。
 
 配置、档案与日志保存在 **`%APPDATA%\VirtualTCU\`**（`tcu_config.json`、`tcu_profiles.json`、`logs\`）。
 
@@ -163,6 +165,14 @@ virtualTCU/
 ---
 
 ## 故障排除
+
+### Release 版 exe 闪一下黑窗就退出
+
+- **必须完整解压 zip** — exe 需要同目录下的 `_internal` 文件夹。
+- **关闭其它 Virtual TCU 实例**（含源码运行的 `python -m virtual_tcu`）— 端口 **5555** / **8765** 只能被一个进程占用。
+- 在 **cmd** 里运行查看报错：`cd 解压路径\VirtualTCU` 后执行 `VirtualTCU.exe`（新版本失败时会暂停等待按键）。
+- 查看 **`%APPDATA%\VirtualTCU\crash.log`**（若存在）。
+- **以管理员身份运行**。
 
 ### 仪表盘显示离线 / 等待 Forza
 
