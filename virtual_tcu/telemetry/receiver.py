@@ -58,6 +58,7 @@ class TelemetryReceiver:
                 if self._sock is None:
                     break
                     
+                # Timeout eklenerek thread interruptible hale getirildi.
                 ready = select.select([self._sock], [], [], 0.5)
                 if not ready[0]:
                     continue
@@ -79,7 +80,7 @@ class TelemetryReceiver:
                         
             except OSError:
                 if not self._running.is_set():
-                    break
+                    break  # Kasıtlı shutdown durumunda fail silent
                 time.sleep(0.01)
             except Exception as e:
                 print(f"[UDP] Error in receiver loop: {e}")
