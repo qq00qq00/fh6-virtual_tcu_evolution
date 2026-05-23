@@ -3,8 +3,10 @@ from typing import Optional
 
 from virtual_tcu.telemetry.model import FH6_PACKET_SIZE, Telemetry
 
+
 def parse_fh6_packet(data: bytes) -> Optional[Telemetry]:
-    if len(data) < FH6_PACKET_SIZE:
+    # Ensure minimum boundary safety for standard FH4/FH5/FH6 Dash array
+    if len(data) < 324 or len(data) < FH6_PACKET_SIZE:
         return None
     try:
         is_race, _ts, max_rpm, _idle, cur_rpm = struct.unpack_from("<iIfff", data, 0)
@@ -13,10 +15,12 @@ def parse_fh6_packet(data: bytes) -> Optional[Telemetry]:
         avx, avy, avz = struct.unpack_from("<fff", data, 44)
         speed, power, torque = struct.unpack_from("<fff", data, 256)
         boost = struct.unpack_from("<f", data, 284)[0]
+        
         accel = data[315]
         brake = data[316]
         clutch = data[317]
         gear = data[319]
+        
         car_ord, car_cls, _pi, drivetrain, ncyl = struct.unpack_from(
             "<iiiii", data, 212
         )
