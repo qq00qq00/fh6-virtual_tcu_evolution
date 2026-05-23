@@ -1,0 +1,29 @@
+{
+  // 关闭目录紧凑显示
+  "explorer.compactFolders": false,
+  // 将tailwindcss入口文件关联到tailwindcss语言服务
+  "files.associations": {
+    "app.css": "tailwindcss",
+    "ui.css": "tailwindcss"
+  },
+  // 格式化代码
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact", "vue"],
+  // i18n-ally配置
+  "i18n-ally.sourceLanguage": "zh-CN",
+  "i18n-ally.enabledParsers": ["ts"],
+  "i18n-ally.annotations": true,
+  "i18n-ally.extract.keygenStyle": "camelCase",
+  "i18n-ally.keystyle": "nested",
+  "i18n-ally.enabledFrameworks": ["vue"],
+  "i18n-ally.translate.engines": ["google"],
+  "i18n-ally.readonly": false,
+  "i18n-ally.localesPaths": ["web-ui/src/locales"],
+  "i18n-ally.namespace": true,
+  "i18n-ally.pathMatcher": "{locale}/{namespace}.{ext}",
+  "cSpell.words": ["AMAP", "YAPI"]
+}
