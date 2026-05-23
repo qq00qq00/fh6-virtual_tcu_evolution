@@ -64,25 +64,27 @@ class WebServer:
         await ws.prepare(request)
         self._clients.add(ws)
         try:
-            await ws.send_json({
-                "type": "init",
-                "data": {
-                    "mode": self._tcu.mode.value,
-                    "live": self._recv.is_live,
-                    "shift_count": self._tcu.shift_count,
-                    "packets_total": self._recv.packets_total,
-                    "config": self._config.data,
-                    "defaults": DEFAULTS,
-                    "log_status": self._logger.status,
-                },
-            })
+            await ws.send_json(
+                {
+                    "type": "init",
+                    "data": {
+                        "mode": self._tcu.mode.value,
+                        "live": self._recv.is_live,
+                        "shift_count": self._tcu.shift_count,
+                        "packets_total": self._recv.packets_total,
+                        "config": self._config.data,
+                        "defaults": DEFAULTS,
+                        "log_status": self._logger.status,
+                    },
+                }
+            )
             async for msg in ws:
                 if msg.type == WSMsgType.TEXT:
                     try:
                         data = json.loads(msg.data)
                         await self._handle_client_msg(data, ws)
                     except Exception as e:
-                        print(f"[WS] msg parse error: {e}")
+                        print(f"[WS] msg error: {e}")
                 elif msg.type == WSMsgType.ERROR:
                     break
         finally:
@@ -104,29 +106,72 @@ class WebServer:
             self._tcu.refresh_shift_keys()
             await ws.send_json({"type": "config_reset", "data": self._config.data})
         elif t == "log_start":
-            self._logger.start(msg.get("mode", "events"))
+            mode = msg.get("mode", "events")
+            self._logger.start(mode)
             await ws.send_json({"type": "log_status", "data": self._logger.status})
         elif t == "log_stop":
             path = self._logger.stop()
-            await ws.send_json({"type": "log_status", "data": self._logger.status, "last_file": path})
+            await ws.send_json(
+                {"type": "log_status", "data": self._logger.status, "last_file": path}
+            )
         elif t == "request_graph":
-            await ws.send_json({"type": "graph_data", "data": self._tcu.snapshot_graph()})
+            await ws.send_json(
+                {"type": "graph_data", "data": self._tcu.snapshot_graph()}
+            )
+        elif t == "export_profile":
+            export = {
+                "version": "v12",
+                "exported_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "config": self._config.data,
+            }
+            await ws.send_json({"type": "profile_export", "data": export})
+        elif t == "import_profile":
+            try:
+                imported = msg.get("data", {})
+                if isinstance(imported, dict) and "config" in imported:
+                    for k, v in imported["config"].items():
+                        if k in DEFAULTS:
+                            self._config.set(k, v)
+                    self._tcu.refresh_shift_keys()
+                    await ws.send_json(
+                        {
+                            "type": "profile_imported",
+                            "ok": True,
+                            "data": self._config.data,
+                        }
+                    )
+                else:
+                    await ws.send_json(
+                        {
+                            "type": "profile_imported",
+                            "ok": False,
+                            "error": "invalid format",
+                        }
+                    )
+            except Exception as e:
+                await ws.send_json(
+                    {"type": "profile_imported", "ok": False, "error": str(e)}
+                )
 
     async def broadcast_loop(self):
         tcu_interval = 1.0 / 60.0
         broadcast_every_n = 2
         tick = 0
+        last_packet_id = -1
         while True:
             await asyncio.sleep(tcu_interval)
             tick += 1
-            if tick % broadcast_every_n != 0 or not self._clients:
-                continue
-
-            td = self._recv.latest()
-            # CRITICAL FIX: Removed self._tcu.process() call here.
-            # Processing is strictly handled by TelemetryReceiver's thread callback.
-            # Calling it here caused double-counting and logic corruption.
             
+            # RACE CONDITION DÜZELTMESİ (process() çağrısı silindi, sadece snapshot alınıyor)
+            td = self._recv.latest()
+            current_id = self._recv.packets_total
+            
+            if tick % broadcast_every_n != 0:
+                continue
+            if not self._clients:
+                continue
+                
+            payload_tel = {"type": "telemetry", "data": self._tcu.snapshot(td)}
             payload_st = {
                 "type": "state",
                 "data": {
@@ -136,16 +181,10 @@ class WebServer:
                     "packets_total": self._recv.packets_total,
                 },
             }
-            
-            payload_tel = None
-            if td is not None:
-                payload_tel = {"type": "telemetry", "data": self._tcu.snapshot(td)}
-
             dead = set()
-            for client in tuple(self._clients):
+            for client in list(self._clients):
                 try:
-                    if payload_tel:
-                        await client.send_json(payload_tel)
+                    await client.send_json(payload_tel)
                     await client.send_json(payload_st)
                 except Exception:
                     dead.add(client)
@@ -162,7 +201,10 @@ class WebServer:
         await runner.setup()
         site = web.TCPSite(runner, Cfg.WEB_HOST, Cfg.WEB_PORT)
         await site.start()
-        print(f"  [OK] Web UI online")
+        if self._ui_available:
+            print(f"  [OK] Web UI (dist: {paths.web_dist_dir()})")
+        else:
+            print(f"  [!] Web UI assets missing ({paths.web_dist_dir()})")
         asyncio.create_task(self.broadcast_loop())
 
     async def stop(self):
