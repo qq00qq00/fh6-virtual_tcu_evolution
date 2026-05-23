@@ -189,6 +189,7 @@ class WebServer:
                 except Exception:
                     dead.add(client_ws)
 
+            # Eşzamanlı yayın (Race-free & Lock-free broadcast)
             tasks = [_send_safe(client) for client in self._clients]
             if tasks:
                 await asyncio.gather(*tasks)
