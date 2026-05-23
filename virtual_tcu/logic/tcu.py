@@ -27,6 +27,7 @@ from virtual_tcu.storage.profiles import ProfileStore
 from virtual_tcu.telemetry.logger import TelemetryLogger
 from virtual_tcu.telemetry.model import Telemetry
 
+
 class TCULogic:
     def __init__(
         self,
@@ -40,6 +41,7 @@ class TCULogic:
         self._config = config
         self._logger = logger
         self._mode_lock = threading.Lock()
+        self._data_lock = threading.RLock()
         try:
             self._mode = Mode(config.get("current_mode", "COMFORT"))
         except ValueError:
@@ -183,87 +185,98 @@ class TCULogic:
 
     @property
     def shift_count(self) -> int:
-        return self._shift_count
+        with self._data_lock:
+            return self._shift_count
 
     def snapshot(self, td: Optional[Telemetry]) -> dict:
-        if td is None:
+        with self._data_lock:
+            if td is None:
+                return {
+                    "gear": -1,
+                    "speed_kmh": 0,
+                    "rpm": 0,
+                    "rpm_max": 0,
+                    "rpm_pct": 0,
+                    "throttle": 0,
+                    "brake": 0,
+                    "tcu_state": "OFFLINE",
+                    "tcu_state_sub": "no telemetry",
+                    "power_kw": 0,
+                    "torque_nm": 0,
+                    "turbo_bar": 0,
+                    "drivetrain": "—",
+                    "attitude": "NEUTRAL",
+                    "attitude_sub": "",
+                    "g_lat": 0,
+                    "g_lon": 0,
+                    "grip_usage": 0,
+                    "shift_hint": "",
+                    "peak_rpm": self._peak_rpm,
+                    "peak_g": self._peak_g,
+                    "calibrated": False,
+                    "log_status": self._logger.status,
+                    "power_curve_learned": False,
+                    "shift_history": [],
+                    "session_stats": self._session_stats.snapshot(),
+                    "watchdog_stuck": self._watchdog.check(),
+                    "drive_style_index": 0.0,
+                    "drive_style_regime": "CRUISE",
+                    "airborne": False,
+                    "yaw_transient": False,
+                    "peak_power_rpm_pct": None,
+                    "peak_torque_rpm_pct": None,
+                }
             return {
-                "gear": -1,
-                "speed_kmh": 0,
-                "rpm": 0,
-                "rpm_max": 0,
-                "rpm_pct": 0,
-                "throttle": 0,
-                "brake": 0,
-                "tcu_state": "OFFLINE",
-                "tcu_state_sub": "no telemetry",
-                "power_kw": 0,
-                "torque_nm": 0,
-                "turbo_bar": 0,
-                "drivetrain": "—",
-                "attitude": "NEUTRAL",
-                "attitude_sub": "",
-                "g_lat": 0,
-                "g_lon": 0,
-                "grip_usage": 0,
-                "shift_hint": "",
+                "gear": td.gear,
+                "speed_kmh": td.speed_kmh,
+                "rpm": td.current_rpm,
+                "rpm_max": td.engine_max_rpm,
+                "rpm_pct": td.rpm_pct,
+                "throttle": td.throttle,
+                "brake": td.brake,
+                "tcu_state": self._tcu_state,
+                "tcu_state_sub": self._tcu_state_sub,
+                "power_kw": td.power_w / 1000.0,
+                "torque_nm": td.torque_nm,
+                "turbo_bar": self._turbo_bar,
+                "drivetrain": td.drivetrain_name,
+                "attitude": self._attitude,
+                "attitude_sub": self._attitude_sub,
+                "g_lat": self._g_lat,
+                "g_lon": self._g_lon,
+                "grip_usage": self._grip_usage,
+                "shift_hint": self._shift_hint,
                 "peak_rpm": self._peak_rpm,
                 "peak_g": self._peak_g,
-                "calibrated": False,
+                "calibrated": self._calibrator.has_data(td.car_ordinal),
+                "power_curve_learned": self._power_curve.has_data(td.car_ordinal),
                 "log_status": self._logger.status,
-                "power_curve_learned": False,
-                "shift_history": [],
+                "shift_history": self._shift_history.snapshot(),
                 "session_stats": self._session_stats.snapshot(),
                 "watchdog_stuck": self._watchdog.check(),
-                "drive_style_index": 0.0,
-                "drive_style_regime": "CRUISE",
-                "airborne": False,
-                "yaw_transient": False,
-                "peak_power_rpm_pct": None,
-                "peak_torque_rpm_pct": None,
+                "car_ordinal": td.car_ordinal,
+                "drive_style_index": round(self._drive_style.index, 2),
+                "drive_style_regime": self._drive_style.regime,
+                "airborne": self._airtime.is_airborne,
+                "yaw_transient": self._yaw_transient.is_blocking,
+                "peak_power_rpm_pct": self._power_curve.peak_power_rpm(td.car_ordinal),
+                "peak_torque_rpm_pct": self._power_curve.peak_torque_rpm(td.car_ordinal),
             }
-        return {
-            "gear": td.gear,
-            "speed_kmh": td.speed_kmh,
-            "rpm": td.current_rpm,
-            "rpm_max": td.engine_max_rpm,
-            "rpm_pct": td.rpm_pct,
-            "throttle": td.throttle,
-            "brake": td.brake,
-            "tcu_state": self._tcu_state,
-            "tcu_state_sub": self._tcu_state_sub,
-            "power_kw": td.power_w / 1000.0,
-            "torque_nm": td.torque_nm,
-            "turbo_bar": self._turbo_bar,
-            "drivetrain": td.drivetrain_name,
-            "attitude": self._attitude,
-            "attitude_sub": self._attitude_sub,
-            "g_lat": self._g_lat,
-            "g_lon": self._g_lon,
-            "grip_usage": self._grip_usage,
-            "shift_hint": self._shift_hint,
-            "peak_rpm": self._peak_rpm,
-            "peak_g": self._peak_g,
-            "calibrated": self._calibrator.has_data(td.car_ordinal),
-            "power_curve_learned": self._power_curve.has_data(td.car_ordinal),
-            "log_status": self._logger.status,
-            "shift_history": self._shift_history.snapshot(),
-            "session_stats": self._session_stats.snapshot(),
-            "watchdog_stuck": self._watchdog.check(),
-            "car_ordinal": td.car_ordinal,
-            "drive_style_index": round(self._drive_style.index, 2),
-            "drive_style_regime": self._drive_style.regime,
-            "airborne": self._airtime.is_airborne,
-            "yaw_transient": self._yaw_transient.is_blocking,
-            "peak_power_rpm_pct": self._power_curve.peak_power_rpm(td.car_ordinal),
-            "peak_torque_rpm_pct": self._power_curve.peak_torque_rpm(td.car_ordinal),
-        }
 
     def snapshot_graph(self) -> list:
-        return self._graph_buffer.snapshot()
+        with self._data_lock:
+            return self._graph_buffer.snapshot()
 
     def process(self, td: Telemetry, raw_packet: Optional[bytes] = None):
+        with self._data_lock:
+            self._process_internal(td, raw_packet)
+
+    def _process_internal(self, td: Telemetry, raw_packet: Optional[bytes]):
         now = time.time()
+        
+        dt = now - self._last_packet_time if self._last_packet_time > 0.0 else 0.016
+        if dt <= 0 or dt > 1.0:
+            dt = 0.016
 
         if self._last_packet_time > 0.0 and (now - self._last_packet_time) > 0.8:
             self._prev_gear = td.gear
@@ -325,14 +338,10 @@ class TCULogic:
         if g_total > self._peak_g:
             self._peak_g = g_total
 
-        self._update_turbo(td)
+        self._update_turbo(td, dt)
         self._update_attitude(td)
         self._calibrator.observe(td)
 
-        # Learn the real rev limiter and correct engine_max_rpm in place.
-        # Forza's nominal value is often well above the actual fuel cut;
-        # correcting it here means power curve, modes, target gear and the
-        # over-rev guard all use the true cutoff with no other changes.
         self._rev_limiter.observe(td, self._last_downshift_time, now)
         real_redline = self._rev_limiter.effective_redline(td)
         if (real_redline is not None
@@ -507,8 +516,6 @@ class TCULogic:
         return True
 
     def _shift_down_double(self, td: Telemetry, lock_ms: int, target: int) -> bool:
-        """Skip-gear: two Q presses with 60ms gap. For panic braking where
-        the single-step cascade (300ms × N) is too slow."""
         if td.gear <= 2:
             return False
         now = time.time()
@@ -540,6 +547,7 @@ class TCULogic:
 
     @staticmethod
     def _curve(throttle: float, low: float, mid: float, high: float) -> float:
+        throttle = max(0.0, min(1.0, throttle))
         if throttle <= 0.50:
             t = throttle / 0.50
             return low + (mid - low) * t
@@ -592,15 +600,21 @@ class TCULogic:
     def _wheelspin_upshift_now(self, td: Telemetry) -> bool:
         if not self._config.get("feat_drivetrain_aware"):
             return False
-        if td.drivetrain == 0:
-            return False
         if td.gear < 1 or td.gear > 3:
             self._slip_streak = 0
             return False
         if td.throttle < 0.40:
             self._slip_streak = 0
             return False
-        if td.rear_slip > 1.2:
+            
+        if td.drivetrain == 0:  # FWD
+            slip = max(td.slip_fl, td.slip_fr)
+        elif td.drivetrain == 1:  # RWD
+            slip = max(td.slip_rl, td.slip_rr)
+        else:  # AWD or unknown
+            slip = max(td.slip_fl, td.slip_fr, td.slip_rl, td.slip_rr)
+
+        if slip > 1.2:
             self._slip_streak += 1
             return self._slip_streak >= 3
         else:
@@ -621,9 +635,6 @@ class TCULogic:
         return (new_speed - old_speed) > 2.0
 
     def _on_climb(self, td: Telemetry) -> bool:
-        """Climb detection by physical evidence: throttle on but speed flat
-        or dropping. Gravity opposes forward motion uphill; we observe the
-        result without needing pitch data from telemetry."""
         if td.throttle < 0.30 or td.brake > 0.05 or td.gear <= 1:
             return False
         if len(self._speed_history) < 15:
@@ -649,19 +660,18 @@ class TCULogic:
             return False
         if td.boost_raw < 0.3 or td.throttle < 0.50:
             return False
-        # At high RPM the turbo is fully spooled — never block
         if td.rpm_pct > 0.85:
             return False
         if self._turbo_bar < td.boost_raw * 0.7:
             return True
         return False
 
-    def _update_turbo(self, td: Telemetry):
+    def _update_turbo(self, td: Telemetry, dt: float):
         if 0.01 < td.boost_raw < 5.0:
             target = min(td.boost_raw, 1.8)
         else:
             target = td.throttle * td.rpm_pct * 1.8
-        dt = 1.0 / 60.0
+            
         if target > self._turbo_bar:
             self._turbo_bar += 3.5 * dt * (target - self._turbo_bar)
         else:
@@ -728,9 +738,9 @@ class TCULogic:
 
     def _launch_control(self, td: Telemetry, now: float) -> bool:
         is_stationary = td.speed_effective_ms < 3.0
-        target_rpm = self._config.get("launch_rpm", 4500)
-
-        if is_stationary and td.gear <= 1 and td.brake > 0.30 and td.throttle > 0.70:
+        
+        # Only arm launch control in Forward Gear 1, NOT Reverse.
+        if is_stationary and td.gear == 1 and td.brake > 0.30 and td.throttle > 0.70:
             if not self._launch_armed:
                 self._launch_armed = True
                 self._no_upshift_until = now + 999
@@ -778,9 +788,6 @@ class TCULogic:
         if peak_torque is None or peak_power is None:
             target_rpm = td.engine_max_rpm * 0.70
         else:
-            # Defensive: ensure power peak is at or above torque peak.
-            # On flat-torque engines (electrics, some diesels) noise can
-            # invert these momentarily.
             peak_power = max(peak_power, peak_torque)
             target_pct = peak_torque + (peak_power - peak_torque) * 0.6
             target_rpm = td.engine_max_rpm * target_pct
@@ -818,19 +825,12 @@ class TCULogic:
             return False
         if td.gear <= 1 or td.speed_kmh <= 25.0:
             return False
-        # Project exit speed: under hard braking we keep slowing, so aim
-        # the target gear at where we'll BE, not where we are. This makes
-        # the braking phase finish all the downshifts before the throttle
-        # is reapplied — no leftover downshift on corner exit.
         brake_margin = 0.20 * min(1.0, td.brake / 0.80)
         projected_speed = td.speed_kmh * (1.0 - brake_margin)
         target = self._target_gear_for_braking(td, speed_override=projected_speed)
         if target is not None and target >= td.gear:
-            # Target says current gear is fine even projected forward, but
-            # if RPM is dropping into lugging while braking hard, downshift.
             if not (td.rpm_pct < 0.50 and td.brake > 0.70):
                 return False
-        # Skip-gear in panic braking: target 3+ below AND brake > 80% AND gear >= 4
         if (target is not None and target <= td.gear - 3
                 and td.brake > 0.80 and td.gear >= 4):
             if self._shift_down_double(td, lock_ms, target):
@@ -851,14 +851,8 @@ class TCULogic:
         self, td: Telemetry, now: float, climb_only: bool = False
     ) -> bool:
         climbing = self._on_climb(td)
-        # climb_only mode (Race / Dynamic-SPORT): only act on climbs, where
-        # gravity kills RPM and there was no braking phase to pre-select
-        # the gear. On the flat the braking phase already did the work.
         if climb_only and not climbing:
             return False
-        # No hard brake recently → fast/light corner, require higher
-        # throttle before kickdown. Avoids dropping a gear after a brief
-        # brake-and-go that doesn't need it.
         had_hard_brake = (now - self._last_hard_brake_time) < 2.0
         throttle_threshold = 0.50 if had_hard_brake else 0.60
         if td.throttle < throttle_threshold:
@@ -898,8 +892,6 @@ class TCULogic:
         if td.rpm_pct < target_pct:
             return False
         return self._shift_up(td, 300, "UPSHIFT", "in band")
-
-    # ─── COMFORT ──────────────────────────────────────────────────────
 
     def _mode_comfort(self, td: Telemetry, now: float):
         thr = td.throttle
@@ -1001,8 +993,6 @@ class TCULogic:
         self._tcu_state = "CRUISING"
         self._tcu_state_sub = ""
 
-    # ─── RACE ─────────────────────────────────────────────────────────
-
     def _mode_race(self, td: Telemetry, now: float):
         thr = td.throttle
         brake_thr = self._config.get("brake_thr", 35) / 100 * 0.6
@@ -1029,9 +1019,6 @@ class TCULogic:
             self._shift_up(td, 400, "WHEELSPIN", "traction save")
             return
 
-        # Downshift while accelerating ONLY on climbs — gravity kills RPM
-        # and there was no braking phase to pre-select the gear. On the
-        # flat the braking phase already finished all the downshifts.
         if self._track_out_of_band_kickdown(td, now, climb_only=True):
             return
 
@@ -1040,8 +1027,6 @@ class TCULogic:
 
         self._tcu_state = "RACE"
         self._tcu_state_sub = "in band"
-
-    # ─── DYNAMIC ──────────────────────────────────────────────────────
 
     def _mode_dynamic(self, td: Telemetry, now: float):
         if (
@@ -1061,7 +1046,6 @@ class TCULogic:
 
     def _dynamic_sport(self, td: Telemetry, now: float):
         brake_thr = self._config.get("brake_thr", 35) / 100 * 0.7
-
         blocker = self._blocked_by_transient()
         if blocker is not None:
             self._tcu_state = blocker
@@ -1073,12 +1057,10 @@ class TCULogic:
         if self._wheelspin_upshift_now(td) and td.speed_kmh > 15.0:
             self._shift_up(td, 400, "WHEELSPIN", "traction save")
             return
-        # Climb-only downshift, same as Race.
         if self._track_out_of_band_kickdown(td, now, climb_only=True):
             return
         if self._track_upshift_in_band(td, now, offset=0.05):
             return
-
         self._tcu_state = "DYNAMIC"
         self._tcu_state_sub = "sport — in band"
 
@@ -1159,11 +1141,8 @@ class TCULogic:
         ):
             self._shift_down(td, 400, "COAST DOWN")
             return
-
         self._tcu_state = "CRUISING"
         self._tcu_state_sub = "adaptive" if adaptive else "relaxed"
-
-    # ─── DRIFT ────────────────────────────────────────────────────────
 
     def _mode_drift(self, td: Telemetry, now: float):
         if td.speed_kmh < 30.0:
@@ -1181,8 +1160,6 @@ class TCULogic:
             return
         self._tcu_state = "DRIFT HOLD"
         self._tcu_state_sub = "in power band"
-
-    # ─── OFFROAD ──────────────────────────────────────────────────────
 
     def _mode_offroad(self, td: Telemetry, now: float):
         thr = td.throttle
@@ -1228,4 +1205,3 @@ class TCULogic:
 
         self._tcu_state = "OFFROAD"
         self._tcu_state_sub = "torque ready"
-
