@@ -3,6 +3,7 @@ import threading
 import time
 from collections import deque
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
 
 import keyboard
 
@@ -42,6 +43,9 @@ class TCULogic:
         self._logger = logger
         self._mode_lock = threading.Lock()
         self._data_lock = threading.RLock()
+        
+        self._audio_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="TCU_Audio")
+
         try:
             self._mode = Mode(config.get("current_mode", "COMFORT"))
         except ValueError:
@@ -105,10 +109,16 @@ class TCULogic:
         if Cfg.REVERSE_HOLD_MS > 0:
             self._setup_paddle_listeners()
 
+    def shutdown(self):
+        self._audio_executor.shutdown(wait=False)
+        if self._discord_rpc:
+            self._discord_rpc.close()
+        self._teardown_paddle_listeners()
+
     def _setup_paddle_listeners(self):
         kb = self._kb
-        down_key = kb.key_down
-        up_key = kb.key_up
+        down_key = kb.key_up
+        up_key = kb.key_down
 
         if (down_key, up_key) == self._paddle_keys:
             return
@@ -275,8 +285,7 @@ class TCULogic:
         now = time.time()
         
         dt = now - self._last_packet_time if self._last_packet_time > 0.0 else 0.016
-        if dt <= 0 or dt > 1.0:
-            dt = 0.016
+        dt = max(0.001, min(dt, 0.100))
 
         if self._last_packet_time > 0.0 and (now - self._last_packet_time) > 0.8:
             self._prev_gear = td.gear
@@ -469,9 +478,7 @@ class TCULogic:
         self._shift_history.record("UP", td, reason=state, rule=self.mode.value)
         self._session_stats.record_shift("UP", state)
         if WINSOUND_OK and self._config.get("feat_sound_beep"):
-            threading.Thread(
-                target=lambda: winsound.Beep(3000, 40), daemon=True
-            ).start()
+            self._audio_executor.submit(winsound.Beep, 3000, 40)
         return True
 
     def _shift_down(
@@ -510,9 +517,7 @@ class TCULogic:
         self._shift_history.record("DOWN", td, reason=state, rule=self.mode.value)
         self._session_stats.record_shift("DOWN", state)
         if WINSOUND_OK and self._config.get("feat_sound_beep"):
-            threading.Thread(
-                target=lambda: winsound.Beep(1500, 50), daemon=True
-            ).start()
+            self._audio_executor.submit(winsound.Beep, 1500, 50)
         return True
 
     def _shift_down_double(self, td: Telemetry, lock_ms: int, target: int) -> bool:
@@ -540,9 +545,7 @@ class TCULogic:
         self._session_stats.record_shift("DOWN", "BRAKE DOWN")
         self._session_stats.record_shift("DOWN", "BRAKE DOWN")
         if WINSOUND_OK and self._config.get("feat_sound_beep"):
-            threading.Thread(
-                target=lambda: winsound.Beep(1500, 50), daemon=True
-            ).start()
+            self._audio_executor.submit(winsound.Beep, 1500, 50)
         return True
 
     @staticmethod
@@ -620,6 +623,81 @@ class TCULogic:
         else:
             self._slip_streak = 0
             return False
+
+    def _track_brake_down(
+        self, td: Telemetry, now: float, brake_thr: float, lock_ms: int = 250
+    ) -> bool:
+        if not self._should_brake_downshift(td, brake_thr):
+            return False
+        if td.gear <= 1 or td.speed_kmh <= 25.0:
+            return False
+        brake_margin = 0.20 * min(1.0, td.brake / 0.80)
+        projected_speed = td.speed_kmh * (1.0 - brake_margin)
+        target = self._target_gear_for_braking(td, speed_override=projected_speed)
+        if target is not None and target >= td.gear:
+            if not (td.rpm_pct < 0.50 and td.brake > 0.70):
+                return False
+        if (target is not None and target <= td.gear - 3
+                and td.brake > 0.80 and td.gear >= 4):
+            if self._shift_down_double(td, lock_ms, target):
+                self._no_upshift_until = now + 0.5
+                return True
+        if target is not None and target < td.gear - 1:
+            sub = f"→{target}"
+        elif target is None:
+            sub = "no ratio data"
+        else:
+            sub = "panic brake"
+        if not self._shift_down(td, lock_ms, "BRAKE DOWN", sub):
+            return False
+        self._no_upshift_until = now + 0.5
+        return True
+
+    def _track_out_of_band_kickdown(
+        self, td: Telemetry, now: float, climb_only: bool = False
+    ) -> bool:
+        climbing = self._on_climb(td)
+        if climb_only and not climbing:
+            return False
+        had_hard_brake = (now - self._last_hard_brake_time) < 2.0
+        throttle_threshold = 0.50 if had_hard_brake else 0.60
+        if td.throttle < throttle_threshold:
+            return False
+        if td.gear <= 2:
+            return False
+        peak_torque = self._power_curve.peak_torque_rpm(td.car_ordinal)
+        threshold = peak_torque - 0.10 if peak_torque is not None else 0.55
+        if climbing:
+            threshold += 0.08
+        if td.rpm_pct >= threshold:
+            return False
+        if not self._shift_down(
+            td, 400, "BAND DOWN", "climb" if climbing else "out of band"
+        ):
+            return False
+        self._no_upshift_until = now + 0.8
+        return True
+
+    def _track_upshift_in_band(
+        self, td: Telemetry, now: float, offset: float, min_throttle: float = 0.05
+    ) -> bool:
+        if td.throttle < min_throttle:
+            return False
+        if td.brake > 0.05:
+            return False
+        if now < self._no_upshift_until:
+            return False
+        if self._turbo_lag_block_upshift(td):
+            return False
+        if td.speed_kmh <= Cfg.MIN_SPEED_KMH:
+            return False
+        fallback = self._config.get("race_up_wot", 94) / 100
+        target_pct = self._power_curve.optimal_upshift_rpm(
+            td, fallback=fallback, offset=offset
+        )
+        if td.rpm_pct < target_pct:
+            return False
+        return self._shift_up(td, 300, "UPSHIFT", "in band")
 
     def _should_engine_brake(self, td: Telemetry) -> bool:
         if not self._config.get("feat_engine_brake"):
@@ -738,8 +816,6 @@ class TCULogic:
 
     def _launch_control(self, td: Telemetry, now: float) -> bool:
         is_stationary = td.speed_effective_ms < 3.0
-        
-        # Only arm launch control in Forward Gear 1, NOT Reverse.
         if is_stationary and td.gear == 1 and td.brake > 0.30 and td.throttle > 0.70:
             if not self._launch_armed:
                 self._launch_armed = True
@@ -817,81 +893,6 @@ class TCULogic:
         old = sum(recent[:3]) / 3
         new = sum(recent[-3:]) / 3
         return (new - old) < 0.5
-
-    def _track_brake_down(
-        self, td: Telemetry, now: float, brake_thr: float, lock_ms: int = 250
-    ) -> bool:
-        if not self._should_brake_downshift(td, brake_thr):
-            return False
-        if td.gear <= 1 or td.speed_kmh <= 25.0:
-            return False
-        brake_margin = 0.20 * min(1.0, td.brake / 0.80)
-        projected_speed = td.speed_kmh * (1.0 - brake_margin)
-        target = self._target_gear_for_braking(td, speed_override=projected_speed)
-        if target is not None and target >= td.gear:
-            if not (td.rpm_pct < 0.50 and td.brake > 0.70):
-                return False
-        if (target is not None and target <= td.gear - 3
-                and td.brake > 0.80 and td.gear >= 4):
-            if self._shift_down_double(td, lock_ms, target):
-                self._no_upshift_until = now + 0.5
-                return True
-        if target is not None and target < td.gear - 1:
-            sub = f"→{target}"
-        elif target is None:
-            sub = "no ratio data"
-        else:
-            sub = "panic brake"
-        if not self._shift_down(td, lock_ms, "BRAKE DOWN", sub):
-            return False
-        self._no_upshift_until = now + 0.5
-        return True
-
-    def _track_out_of_band_kickdown(
-        self, td: Telemetry, now: float, climb_only: bool = False
-    ) -> bool:
-        climbing = self._on_climb(td)
-        if climb_only and not climbing:
-            return False
-        had_hard_brake = (now - self._last_hard_brake_time) < 2.0
-        throttle_threshold = 0.50 if had_hard_brake else 0.60
-        if td.throttle < throttle_threshold:
-            return False
-        if td.gear <= 2:
-            return False
-        peak_torque = self._power_curve.peak_torque_rpm(td.car_ordinal)
-        threshold = peak_torque - 0.10 if peak_torque is not None else 0.55
-        if climbing:
-            threshold += 0.08
-        if td.rpm_pct >= threshold:
-            return False
-        if not self._shift_down(
-            td, 400, "BAND DOWN", "climb" if climbing else "out of band"
-        ):
-            return False
-        self._no_upshift_until = now + 0.8
-        return True
-
-    def _track_upshift_in_band(
-        self, td: Telemetry, now: float, offset: float, min_throttle: float = 0.05
-    ) -> bool:
-        if td.throttle < min_throttle:
-            return False
-        if td.brake > 0.05:
-            return False
-        if now < self._no_upshift_until:
-            return False
-        if self._turbo_lag_block_upshift(td):
-            return False
-        if td.speed_kmh <= Cfg.MIN_SPEED_KMH:
-            return False
-        fallback = self._config.get("race_up_wot", 94) / 100
-        target_pct = self._power_curve.optimal_upshift_rpm(
-            td, fallback=fallback, offset=offset
-        )
-        if td.rpm_pct < target_pct:
-            return False
-        return self._shift_up(td, 300, "UPSHIFT", "in band")
 
     def _mode_comfort(self, td: Telemetry, now: float):
         thr = td.throttle
