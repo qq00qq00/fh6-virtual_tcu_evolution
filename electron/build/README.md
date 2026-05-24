@@ -1,7 +1,18 @@
 # Electron build resources
 
-Drop `icon.ico` (256x256, multi-res Windows ICO) and an optional
-`installerIcon.ico` here, then uncomment the `icon:` line in
-`../electron-builder.yml`.
+Place a **valid Windows `.ico`** here (multi-resolution, e.g. 16–256 px).
+Do **not** rename a `.png` to `.ico` — `electron-builder` / `rcedit` will fail with:
 
-`background.png` (NSIS sidebar) is optional.
+`Reserved header is not 0 or image type is not icon`
+
+## Generate `icon.ico` from a PNG
+
+```powershell
+pip install pillow
+python build/make-icon.py path/to/source.png
+```
+
+Or use an online converter / GIMP / Photoshop and export as Windows ICO.
+
+Optional: `installerIcon.ico` (NSIS wizard), `background.png` (NSIS sidebar).
+Then set `icon:` in `../electron-builder.yml` (already enabled).
