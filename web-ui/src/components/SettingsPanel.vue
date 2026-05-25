@@ -6,7 +6,6 @@
     SETTING_GROUPS,
     SHIFT_KEY_FIELDS,
   } from '@/config/settings'
-  import { useNetworkSettings } from './network-settings'
   import {
     actionBtn,
     actionBtnCompact,
@@ -20,6 +19,7 @@
     toggleRow,
   } from '@/styles/ui'
   import ConfigTextInput from './ConfigTextInput.vue'
+  import { useNetworkSettings } from './network-settings'
   import { TAB_IDS, useSettingsPanel } from './settings-panel'
   import SettingSlider from './SettingSlider.vue'
   import ToggleSwitch from './ToggleSwitch.vue'

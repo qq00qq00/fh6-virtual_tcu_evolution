@@ -1,0 +1,676 @@
+# Virtual TCU Monorepo 重构方案
+
+> 目标：pnpm workspace monorepo · web-ui 与 electron 统一 Naive UI + Tailwind CSS · **Vite 7 统一** · Electron 42.2.0 · Node 24 · pnpm 10.33+ · **Python Ruff**
+>
+> 创建日期：2026-05-25
+
+---
+
+## 总体进度
+
+- [x] Phase 0 — 基础设施 ✅ 2026-05-25
+- [ ] Phase 0.5 — Python Ruff（lint + format）
+- [ ] Phase 1 — 抽取 `@virtual-tcu/shared`
+- [ ] Phase 2 — 抽取 `@virtual-tcu/ui` + Naive UI 统一
+- [ ] Phase 3 — 工具链升级（**Vite 7 统一** / Electron 42 / electron-vite 5）
+- [ ] Phase 4 — 目录迁移与 CI
+- [ ] Phase 5 — 清理与文档
+
+---
+
+## 当前状态快照（2026-05-25）
+
+| 项目 | 状态 |
+|------|------|
+| **Phase 0** | ✅ 已完成 — pnpm workspace、根级 ESLint/Prettier/TS、双包 typecheck 通过 |
+| **Phase 0.5–5** | ⬜ 未开始 |
+| **Python lint/format** | ⬜ 无配置（`.gitignore` 已有 `.ruff_cache/` 占位，待 Phase 0.5 落地） |
+| **workspace 结构** | `web-ui` + `electron`（原位，尚未 rename 到 `apps/`） |
+| **pnpm** | 10.33.0（`packageManager` 已锁定；原方案 11.3 暂未升级） |
+| **web-ui Vite** | ^7.3.2（已是目标版本） |
+| **electron Vite** | ^5.4.11（待 Phase 3 升到 ^7.3.x） |
+| **electron-vite** | ^2.3.0（待 Phase 3 升到 ^5.0.0 stable） |
+| **Electron** | ^33.2.1（待 Phase 3 升到 42.2.0） |
+| **已知 peer 警告** | `@vitejs/plugin-vue@5` 不支持 Vite 7 → Phase 3 升 plugin-vue 6 消除 |
+
+**下一步建议**：Phase 0.5（Ruff，独立小步）或 Phase 1（抽 shared）或 Phase 3（工具链，可并行）
+
+---
+
+当前已是 **pnpm workspace**（Phase 0 完成），但 `web-ui/` 与 `electron/` 仍在原位，共享代码通过路径 alias 耦合，Python 后端在根目录。`packages/` 与 `apps/` 目录尚未创建。
+
+| 维度 | web-ui | electron |
+|------|--------|----------|
+| 包管理 | pnpm workspace 成员 | pnpm workspace 成员 |
+| Vite | ^7.3.2 ✅ | ^5.4.11（待统一到 7） |
+| electron-vite | — | ^2.3.0（待升到 5） |
+| Electron | — | ^33.2.1（待升到 42.2.0） |
+| UI 框架 | package.json 有 naive-ui，**实际用 Tailwind 自研组件** | settings 用 **Naive UI**；**已装 Tailwind 4 但未用 utility class**；HUD 用纯 CSS |
+| Tailwind CSS | `@tailwindcss/vite` ^4，重度使用 `@theme` + layout | `electron.vite.config.ts` 已启用插件，renderer 几乎未写 class |
+| 产物 | → `virtual_tcu/web/dist/` | → `electron/out/` + NSIS 安装包 |
+| 共享代码 | 被 electron 通过 `@web-ui` alias 引用 | 仅 settings-renderer 复用 composables/config/i18n |
+
+| 维度 | Python 后端（`virtual_tcu/`） |
+|------|--------------------------------|
+| 体量 | ~43 文件 / ~3800 行 |
+| lint / format | **无**（`requirements.txt` 仅运行时依赖） |
+| 目标 | **Ruff** lint + format（≈ ESLint + Prettier，无需 Black） |
+
+### 核心问题
+
+1. **UI 双轨**：`SettingsPanel.vue`（Tailwind）与 `SettingsApp.vue`（Naive UI）功能重叠
+2. **依赖分裂**：Vue / TypeScript / Vite 版本不一致
+3. **构建链路过长**：CI 仍用 npm 分步构建（Phase 4 改 pnpm）
+4. **electron 已通过 alias 依赖 web-ui**，但 monorepo 边界不清晰
+5. **Python 无 lint/format**：前端已有 ESLint + Prettier，后端缺少对应工具链
+
+---
+
+## 二、目标架构
+
+```
+fh6-virtual_tcu/
+├── package.json                 # 根 workspace 脚本
+├── pnpm-workspace.yaml
+├── pnpm-lock.yaml
+├── .npmrc                       # pnpm + electron 兼容配置
+├── .node-version                # 24
+├── packages/
+│   ├── shared/                  # @virtual-tcu/shared
+│   │   ├── src/
+│   │   │   ├── api/             # ws-client
+│   │   │   ├── composables/     # useTcuStore, useTcuViewStore, useGraph...
+│   │   │   ├── config/          # modes, settings, links
+│   │   │   ├── i18n/
+│   │   │   ├── locales/
+│   │   │   ├── types/
+│   │   │   └── utils/
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── ui/                      # @virtual-tcu/ui（Naive UI 组件 + 共享样式）
+│       ├── src/
+│       │   ├── provider/        # TcuConfigProvider（主题/语言/i18n 封装）
+│       │   ├── settings/        # 从 SettingsApp.vue 拆出的面板组件
+│       │   ├── dashboard/       # DashboardPanel, StatsHistoryPanel...
+│       │   ├── layout/          # AppHeader, AppFooter, ModeSidebar
+│       │   ├── styles/          # theme.css（@theme tokens）、base.css
+│       │   └── index.ts
+│       ├── package.json
+│       └── tsconfig.json
+│
+├── apps/
+│   ├── dashboard/               # 浏览器仪表盘（原 web-ui）
+│   │   ├── src/
+│   │   │   ├── App.vue          # 薄壳，组合 @virtual-tcu/ui
+│   │   │   └── main.ts
+│   │   ├── vite.config.ts
+│   │   └── package.json
+│   │
+│   └── electron/                # Electron 壳（原 electron/）
+│       ├── src/
+│       │   ├── main/
+│       │   ├── preload/
+│       │   ├── settings-renderer/  # 薄壳 → @virtual-tcu/ui
+│       │   └── hud-renderer/       # 保持独立（透明 overlay，不用 Naive）
+│       ├── electron.vite.config.ts
+│       ├── electron-builder.yml
+│       └── package.json
+│
+├── virtual_tcu/                   # Python 后端（位置不变）
+├── pyproject.toml                 # Ruff lint + format 配置
+├── requirements.txt
+├── requirements-dev.txt           # ruff（可选，或仅用 pipx/uv tool）
+└── virtual_tcu.spec
+```
+
+### 包依赖关系
+
+```mermaid
+graph TD
+  shared["@virtual-tcu/shared"]
+  ui["@virtual-tcu/ui"]
+  dash["apps/dashboard"]
+  elec["apps/electron"]
+  py["virtual_tcu Python"]
+
+  shared --> ui
+  ui --> dash
+  shared --> dash
+  ui --> elec
+  shared --> elec
+  dash -->|"build → dist/"| py
+  py -->|"serve :8765"| dash
+  elec -->|"spawn backend"| py
+```
+
+---
+
+## 三、工具链目标版本
+
+| 工具 | 当前 | 目标 | 备注 |
+|------|------|------|------|
+| Node.js | 本地 24 / CI 仍 22 | **24.x** | Vite 7 要求 ≥20.19 |
+| pnpm | 10.33.0 | **≥10.33.0**（可选后续升 11.3） | workspace 已就绪 |
+| Vite | web-ui ^7.3.2 / electron ^5.4.11 | **^7.3.x 统一** | web-ui 无需大改；electron 从 5 升到 7 |
+| electron-vite | ^2.3.0 | **^5.0.0**（stable） | peer：`vite ^5 \|\| ^6 \|\| ^7`；**不用 6 beta** |
+| Electron | ^33.2.1 | **42.2.0** | 与 Vite 版本无关，可独立升级 |
+| @vitejs/plugin-vue | ^5.2.3 | **^6.0.x** | v5 仅到 Vite 6；Vite 7 必须 plugin-vue 6 |
+| @tailwindcss/vite | ^4.1.3 | **^4.x latest** | 已支持 Vite 7 |
+| naive-ui | ^2.44.1 | **^2.44.x**（workspace 统一） | 提到 packages/ui |
+| vue | 3.5.x 分裂 | **^3.5.x**（workspace 统一） | pnpm overrides 或 catalog |
+| **Ruff** | 无 | **^0.9.x**（dev） | Python lint + format；**替代 Black + Flake8 + isort** |
+| ESLint + Prettier | 根级已统一 | 保持 | 前端；与 Ruff 并列，互不替代 |
+
+### Python 工具链：Ruff（≈ ESLint + Prettier）
+
+| JS | Python（采用 Ruff） |
+|----|---------------------|
+| ESLint | Ruff **lint**（错误、坏味道、未使用 import） |
+| Prettier | Ruff **format**（缩进、引号、换行） |
+| — | 不单独引入 Black / Flake8 / isort |
+
+- 配置集中在根 `pyproject.toml`
+- 根 `package.json` 脚本：`lint:py`、`format:py`（内部调用 `ruff`）
+- **首次 `ruff format` 会改较多文件** → 独立分支 `chore/python-ruff`，不与 UI/monorepo 重构混 PR
+- mypy / pyright **暂不引入**（现有 type hints 不完整，后续按需）
+
+### Vite 7 统一 vs Vite 8（决策记录）
+
+| | Vite 7 统一 ✅ 采用 | Vite 8 统一 ❌ 放弃 |
+|---|---|---|
+| electron-vite | **5.0.0 stable** | 6.0.0-beta |
+| web-ui 迁移 | 已在 7.3.2，几乎零成本 | 7 → 8 额外迁移 |
+| 打包引擎 | esbuild + Rollup（成熟） | Rolldown（Vite 8 新架构） |
+| 风险 | 低 | beta + 插件 edge case |
+
+根 `package.json` 建议用 `pnpm.overrides` 锁定 Vite 7：
+
+```json
+{
+  "pnpm": {
+    "overrides": {
+      "vite": "^7.3.2",
+      "@electron-toolkit/utils>electron": "^33.2.1"
+    }
+  }
+}
+```
+
+---
+
+## 四、Naive UI + Tailwind 统一策略
+
+### Electron 能否使用 Tailwind？
+
+**可以，且项目里已经配好了。** electron-vite 的 renderer 就是标准 Vite + Vue 构建，`electron/electron.vite.config.ts` 里已有 `tailwindcss()` 插件，`package.json` 也有 `@tailwindcss/vite` ^4。
+
+当前实际情况是：
+
+- **settings-renderer**：UI 由 Naive UI 承担，布局靠 `NFlex` / `NGrid` 等，全局样式在 `styles.css`（手写 CSS reset），**几乎没写 Tailwind utility class**
+- **hud-renderer**：透明 overlay，scoped 纯 CSS，**不适合** Tailwind（也不适合 Naive UI）
+
+因此不是「electron 能不能用 Tailwind」，而是「**Naive UI 与 Tailwind 如何分工**」。
+
+### 分层原则（Naive UI + Tailwind 共存，而非二选一）
+
+| 层级 | 技术 | 职责 |
+|------|------|------|
+| 交互组件 | **Naive UI** | Button、Input、Switch、Slider、Tabs、Modal、Message… |
+| 布局 / 间距 / 响应式 | **Tailwind utility** | `grid`、`gap-*`、`min-h-0`、`max-[1100px]:…` |
+| 设计 token | **Tailwind `@theme`** | `--color-tcu-*`、`--color-mode-*` 等品牌色 |
+| Naive 主题 | **`NConfigProvider` theme overrides** | 与 Tailwind token 对齐的 primary / borderRadius 等 |
+| HUD overlay | **scoped 纯 CSS** | 透明窗口、click-through、性能 |
+
+- **settings / dashboard / sidebar / stats** → Naive UI 组件 + Tailwind 布局（与 electron `SettingsApp.vue` 对齐）
+- **HUD overlay** → 保持纯 CSS（透明窗口、click-through、性能）
+- **逻辑与视图分离**：composables 进 `@virtual-tcu/shared`，Vue 组件进 `@virtual-tcu/ui`
+- **共享样式**：`packages/ui/src/styles/theme.css` 供 dashboard 与 electron settings 共同 `@import`
+
+### UI 迁移映射
+
+| 现有（Tailwind 自研组件） | 目标 |
+|--------------------------|------|
+| `ToggleSwitch.vue` | `NSwitch` |
+| `SettingSlider.vue` | `NSlider` |
+| `ConfigTextInput.vue` | `NInput` |
+| `SettingsPanel.vue` 各 tab | `NTabs` + `NCard` |
+| `styles/ui.ts` + `ui.css`（`@layer components` 自研样式） | **删除**；交互交给 Naive，布局改用 Tailwind utility |
+| `styles/app.css` 中 `@theme` token | **保留并上提到** `packages/ui/src/styles/theme.css` |
+| `ProfileModal.vue` | `NModal` |
+| `ModeSidebar.vue` | `NCard` / `NStatistic` + Tailwind grid |
+| `DashboardChart.vue` | 保留 canvas/chart 逻辑，外层 `NCard` + Tailwind 布局 |
+| electron settings 中 `NFlex` / `NGrid` 布局 | 可逐步改为 Tailwind utility（可选，非必须） |
+
+### 主题策略
+
+在 `@virtual-tcu/ui` 提供 `TcuConfigProvider.vue`：
+
+- `NConfigProvider` + `darkTheme` / `lightTheme` + `zhCN` / `enUS` + `NMessageProvider`
+- dashboard 用 `darkTheme`，electron settings 用 `lightTheme`（与现 settings 一致）
+
+### SettingsApp 拆分目标
+
+electron `SettingsApp.vue`（~900 行）拆分为：
+
+- `SettingsOverview.vue`
+- `SettingsConfig.vue`
+- `SettingsAdvanced.vue`
+- `SettingsStats.vue`
+- `SettingsHistory.vue`
+- `SettingsAbout.vue`
+
+dashboard 的 `App.vue` 复用同一套 layout 组件，通过 props 控制 `interactive: false`（只读模式，沿用 `useTcuViewStore` vs `useTcuStore` 区分）。
+
+---
+
+## 五、分阶段实施计划
+
+### Phase 0 — 基础设施 ✅
+
+- [x] 根目录初始化 pnpm workspace（`package.json` + `pnpm-workspace.yaml`）
+- [x] 添加 `.npmrc`（hoisted / shamefully-hoist，兼容 electron-builder）
+- [x] 添加 `.node-version`（24）与 `engines` / `packageManager` 字段
+- [x] 删除 `web-ui/package-lock.json`、`electron/package-lock.json`
+- [x] 根脚本：`dev:dashboard`、`dev:electron`、`build`、`typecheck`、`lint`
+- [ ] （可选）配置 Turborepo 或根级 build 串联 — 暂不引入，后续按需
+- [x] 统一 ESLint / Prettier / TypeScript 基线配置
+
+**验收**
+
+- [x] `pnpm install` 成功
+- [x] `pnpm -r typecheck` 通过（尚未改 UI）
+
+**实施记录与注意事项**
+
+1. **pnpm 实际版本**：系统安装的是 pnpm 10.33.0（非 11.3），`packageManager` 字段已自动更新为 `pnpm@10.33.0`。后续升级到 11.3 时需同步更新。
+2. **`@electron-toolkit/utils` 嵌套 electron 问题**：该包将 `electron` 声明为 dependency，导致 pnpm 在 macOS 上安装嵌套 electron 时 EPERM（`.app` bundle 内的 symlink 无法 hardlink）。解决方案：根 `package.json` 添加 `pnpm.overrides`：
+   ```json
+   "@electron-toolkit/utils>electron": "^33.2.1"
+   ```
+3. **`vue-tsc` 必须提升到根 devDeps**：electron 包有独立的 `node_modules`（因 `@types/node` bin 冲突），导致 `vue-tsc` 在 electron 子目录下找不到 bin。解决方案：将 `vue-tsc` 从两个子包移到根 `devDependencies`。
+4. **vue-tsc 3 比 2 更严格**：升级后发现 `HudApi` 类型缺少 `onBackendReady`（`env.d.ts` 与 `preload/hud.ts` 不同步），已修复。
+5. **ESLint 覆盖范围扩大**：electron 之前没有 ESLint 配置，统一后暴露了 main 进程使用 `process` / `Buffer` 全局变量的 lint 错误。已通过 `eslint.config.ts` 中 `electron/src/main/**/*.ts` 的 override 解决。
+6. **`@vitejs/plugin-vue` peer dep 警告**：web-ui 使用 Vite 7 但 plugin-vue 5 只声明支持 Vite 5/6，产生 peer dep 警告。Phase 3 统一升到 **plugin-vue 6 + Vite 7** 后消除（无需 Vite 8）。
+7. **Electron 下载慢**：已在 `.npmrc` 配置 `electron_mirror=https://npmmirror.com/mirrors/electron/`。
+8. **workspace 当前结构**：Phase 0 阶段 `pnpm-workspace.yaml` 指向 `web-ui` 和 `electron`（原位），目录 rename 到 `apps/` 在 Phase 4 执行。
+
+---
+
+### Phase 0.5 — Python Ruff（lint + format）
+
+> **策略**：用 Ruff 统一 Python lint + format，与前端 ESLint + Prettier 对齐。不引入 Black（Ruff format 已覆盖）。独立小步，可与 Phase 1 / 3 并行。
+
+- [ ] 根目录添加 `pyproject.toml`（`[tool.ruff]` / `[tool.ruff.lint]` / `[tool.ruff.format]`）
+- [ ] 添加 `requirements-dev.txt`（`ruff>=0.9`）或文档说明 `pip install ruff` / `uv tool install ruff`
+- [ ] 根 `package.json` 添加脚本：
+  - [ ] `lint:py` → `ruff check virtual_tcu virtual_tcu.py`
+  - [ ] `format:py` → `ruff format virtual_tcu virtual_tcu.py`
+  - [ ] `lint` 扩展为同时跑 ESLint + Ruff（或 `lint:all`）
+- [ ] 配置 Ruff：`line-length = 100`、`target-version = "py312"`
+- [ ] 配置 lint rules：`E`、`F`、`I`（import）、`UP`（pyupgrade）、`B`（bugbear）为基础集
+- [ ] 在独立分支 `chore/python-ruff` 执行首次 `ruff format` + 修复 `ruff check` 报错
+- [ ] 更新 `CLAUDE.md` / README 开发指引（Python 贡献需跑 `pnpm lint:py`）
+- [ ] （可选）VS Code 推荐扩展：`charliermarsh.ruff`
+
+**验收**
+
+- [ ] `ruff check virtual_tcu virtual_tcu.py` 零 error
+- [ ] `ruff format --check` 通过（格式已统一）
+- [ ] 不影响 PyInstaller 打包与运行时行为
+
+**注意事项**
+
+1. **不要与 Phase 1/2 混 PR**：首次 format 可能 touch 40+ 文件，单独 review。
+2. **`requirements.txt` 保持纯净**：Ruff 仅 dev 依赖，不打进 PyInstaller 产物。
+3. **Windows-only 代码**：Ruff 在 macOS 上 lint 没问题；`keyboard` 等 win32 专用 import 若触发平台规则，用 `# noqa` 或 `per-file-ignores` 处理。
+
+---
+
+### Phase 1 — 抽取 `@virtual-tcu/shared`
+
+- [ ] 创建 `packages/shared/` 目录与 `package.json`
+- [ ] 迁移 `api/ws-client.ts`
+- [ ] 迁移 `composables/`（`useTcuStore`、`useTcuViewStore`、`useGraph` 等）
+- [ ] 迁移 `config/`（modes、settings、links）
+- [ ] 迁移 `i18n/` 与 `locales/`
+- [ ] 迁移 `types/` 与 `utils/`
+- [ ] 配置 `packages/shared/tsconfig.json` 与 exports
+- [ ] `web-ui` 改为依赖 `@virtual-tcu/shared`（import 路径 `@/` → workspace 包）
+- [ ] `electron` 移除 `@web-ui` alias，改为 workspace 依赖
+- [ ] 验证 electron settings-renderer 仍可正常引用 shared 模块
+
+**验收**
+
+- [ ] electron settings 功能不变
+- [ ] web-ui dashboard 功能不变
+- [ ] 仅路径变更，无 UI 改动
+
+---
+
+### Phase 2 — 抽取 `@virtual-tcu/ui` + Naive UI 统一
+
+- [ ] 创建 `packages/ui/` 目录与 `package.json`
+- [ ] 抽取共享 `packages/ui/src/styles/theme.css`（自 `web-ui/src/styles/app.css` 的 `@theme`）
+- [ ] 抽取共享 `packages/ui/src/styles/base.css`（reset + `#app` 布局基线）
+- [ ] dashboard 与 electron settings 均 `@import` 共享样式，两端 Vite 配置保留 `tailwindcss()` 插件
+- [ ] 实现 `TcuConfigProvider.vue`（Naive theme overrides 与 Tailwind `@theme` token 对齐）
+- [ ] 从 `SettingsApp.vue` 拆分 `SettingsOverview.vue`
+- [ ] 从 `SettingsApp.vue` 拆分 `SettingsConfig.vue`
+- [ ] 从 `SettingsApp.vue` 拆分 `SettingsAdvanced.vue`
+- [ ] 从 `SettingsApp.vue` 拆分 `SettingsStats.vue`
+- [ ] 从 `SettingsApp.vue` 拆分 `SettingsHistory.vue`
+- [ ] 从 `SettingsApp.vue` 拆分 `SettingsAbout.vue`
+- [ ] 迁移 layout 组件（`AppHeader`、`AppFooter`、`ModeSidebar`）
+- [ ] 迁移 dashboard 组件（`DashboardPanel`、`StatsHistoryPanel`、`DashboardChart` 外层）
+- [ ] electron `settings-renderer` 改为薄壳，组合 `@virtual-tcu/ui`
+- [ ] web-ui dashboard 替换 Tailwind 自研组件为 Naive UI
+- [ ] 删除 `ToggleSwitch.vue`、`SettingSlider.vue`、`ConfigTextInput.vue` 等旧组件
+- [ ] 删除 `styles/ui.ts`、`styles/ui.css`（自研 component layer）；**保留** Tailwind `@theme` + layout utility
+- [ ] dashboard `main.ts` 挂载 `TcuConfigProvider`
+
+**验收**
+
+- [ ] 浏览器 `:8765` 与 Electron settings 窗口视觉 / 交互一致
+- [ ] 只读 dashboard 不能写入 config（保持现有 WS 权限模型）
+- [ ] HUD renderer 保持纯 CSS，未引入 Naive UI
+
+---
+
+### Phase 3 — 工具链升级（Vite 7 统一）
+
+> **策略**：web-ui 已在 Vite 7，主要工作是 electron 侧 `electron-vite 2→5` + `vite 5→7` + `plugin-vue 5→6`。全程使用 **stable** 工具链，不引入 electron-vite 6 beta。
+
+#### 3a — dashboard（web-ui，改动最小）
+
+- [ ] 确认 `vite` 锁定 `^7.3.x`（当前已是，via 根 overrides）
+- [ ] 升级 `@vitejs/plugin-vue` → `^6.0.x`（消除 Vite 7 peer 警告）
+- [ ] 确认 `@tailwindcss/vite@^4` 与 Vite 7 兼容
+- [ ] `pnpm dev:dashboard` 与 `pnpm build:dashboard` 通过
+
+#### 3b — electron（主要工作量）
+
+- [ ] 升级 `electron-vite` → `^5.0.0`（2→5 跨度大，需对照 [electron-vite 迁移指南](https://electron-vite.org/guide/)）
+- [ ] 升级 `vite` → `^7.3.x`（与 dashboard 统一）
+- [ ] 升级 `@vitejs/plugin-vue` → `^6.0.x`
+- [ ] 确认 `electron.vite.config.ts` 为 ESM 格式（electron-vite 5 要求）
+- [ ] 验证 renderer 侧 `@tailwindcss/vite@^4` 与 Vite 7 兼容
+- [ ] 升级 `electron` → `42.2.0`
+- [ ] 升级 `electron-builder` 到兼容版本
+- [ ] 验证 `@electron-toolkit/utils` 与 Electron 42 兼容；更新 overrides 中的 electron 版本
+- [ ] `pnpm dev:electron` HMR 正常
+- [ ] `pnpm build:electron` + Windows package 成功
+
+#### 3c — 根目录
+
+- [ ] 根 `package.json` 添加 `pnpm.overrides` 锁定 `vite: ^7.3.x`
+- [ ] 根 `package.json` 添加 pnpm overrides（如 `yauzl: ^3.3.1`，应对 Node 24 + Electron postinstall）
+- [ ] 统一 workspace 内 vue / vue-i18n / naive-ui / @vitejs/plugin-vue 版本
+
+**验收**
+
+- [ ] 本地 dev 双端正常
+- [ ] 生产 build 双端正常
+- [ ] Windows 安装包可安装运行
+
+---
+
+### Phase 4 — 目录迁移与 CI
+
+- [ ] `web-ui/` → `apps/dashboard/`
+- [ ] `electron/` → `apps/electron/`
+- [ ] 更新 dashboard `vite.config.ts` 的 `outDir`（仍为 `../../virtual_tcu/web/dist`）
+- [ ] 更新 `electron-builder.yml` 中 extraResources 相对路径
+- [ ] 更新 `.github/workflows/release.yml`：
+  - [ ] 改用 `pnpm/action-setup@v4`（10.33.0 或后续 11.3）
+  - [ ] Node 24 + pnpm cache
+  - [ ] `pnpm install --frozen-lockfile`
+  - [ ] `pnpm build:dashboard`
+  - [ ] `pnpm --filter @virtual-tcu/electron package`
+  - [ ] `ruff check` 作为 release 前本地检查；或另建 PR CI workflow
+- [ ] 更新 `CLAUDE.md`
+- [ ] 更新 `.vscode/settings.json`（i18n-ally 路径等）
+- [ ] 更新 `packaging/dev-electron.bat`（如有路径引用）
+
+**验收**
+
+- [ ] 打 tag `v*` 触发 release workflow
+- [ ] 产物与现有一致（Electron 安装包 + backend-only zip）
+
+---
+
+### Phase 5 — 清理与文档
+
+- [ ] 删除 `@web-ui` path alias 及相关 tsconfig 配置
+- [ ] 删除未使用的 Tailwind `@layer components`（自研 ui.css）；保留 `@theme` + layout utility
+- [ ] 统一 monorepo 版本号策略（根 version 或 changesets）
+- [ ] （可选）添加 `turbo.json` 缓存 build
+- [ ] 更新 `README.md` / `README.zh-CN.md` 开发指引
+- [ ] 本文件各 Phase 复选框全部勾选
+
+**验收**
+
+- [ ] 无 dead code / 无重复 UI 实现
+- [ ] 新开发者可按文档 `pnpm install && pnpm dev:electron` 一键启动
+
+---
+
+## 六、关键配置参考
+
+### 根 `package.json` 示例
+
+```json
+{
+  "name": "virtual-tcu-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.33.0"
+  },
+  "scripts": {
+    "dev:dashboard": "pnpm --filter @virtual-tcu/dashboard dev",
+    "dev:electron": "pnpm --filter @virtual-tcu/electron dev",
+    "build:dashboard": "pnpm --filter @virtual-tcu/dashboard build",
+    "build:electron": "pnpm --filter @virtual-tcu/electron build",
+    "build": "pnpm build:dashboard && pnpm build:electron",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint . && pnpm lint:py",
+    "lint:py": "ruff check virtual_tcu virtual_tcu.py",
+    "format": "prettier --write . && pnpm format:py",
+    "format:py": "ruff format virtual_tcu virtual_tcu.py"
+  }
+}
+```
+
+### `pnpm-workspace.yaml`
+
+```yaml
+packages:
+  - 'packages/*'
+  - 'apps/*'
+```
+
+### `.npmrc`
+
+```ini
+shamefully-hoist=true
+node-linker=hoisted
+strict-peer-dependencies=false
+electron_mirror=https://npmmirror.com/mirrors/electron/
+```
+
+### 根 `pnpm.overrides` 示例（Vite 7 统一）
+
+```json
+{
+  "pnpm": {
+    "overrides": {
+      "vite": "^7.3.2",
+      "@electron-toolkit/utils>electron": "42.2.0"
+    }
+  }
+}
+```
+
+### `pyproject.toml` 示例（Ruff）
+
+```toml
+[project]
+name = "virtual-tcu"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["virtual_tcu"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# 入口脚本允许顶层 import 顺序特殊处理（按实际报错调整）
+"virtual_tcu/app.py" = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+```
+
+### `requirements-dev.txt` 示例
+
+```text
+ruff>=0.9.0
+```
+
+### dashboard `vite.config.ts`
+
+```typescript
+export default defineConfig({
+  plugins: [vue(), tailwindcss()], // Naive UI 负责组件，Tailwind 负责 layout + @theme token
+  resolve: {
+    alias: {
+      '@virtual-tcu/shared': resolve(__dirname, '../../packages/shared/src'),
+      '@virtual-tcu/ui': resolve(__dirname, '../../packages/ui/src'),
+    },
+  },
+  build: {
+    outDir: '../../virtual_tcu/web/dist',
+    emptyOutDir: true,
+  },
+})
+```
+
+### electron `electron.vite.config.ts`
+
+```typescript
+// renderer：已有 tailwindcss() 插件；settings 与 dashboard 共用 @virtual-tcu/ui + 共享 theme.css
+// hud-renderer 保持独立入口，不 import theme.css，不加 Naive UI
+renderer: {
+  plugins: [vue(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@virtual-tcu/shared': resolve(__dirname, '../../packages/shared/src'),
+      '@virtual-tcu/ui': resolve(__dirname, '../../packages/ui/src'),
+    },
+  },
+}
+```
+
+### electron-vite 5 + Vite 7 注意点
+
+```typescript
+// electron.vite.config.ts — electron-vite 5 要求 ESM 配置
+// 若 package.json 无 "type": "module"，可命名为 electron.vite.config.mjs
+
+export default defineConfig({
+  main: {
+    plugins: [externalizeDepsPlugin()],
+  },
+  preload: {
+    plugins: [externalizeDepsPlugin()],
+  },
+  renderer: {
+    plugins: [vue(), tailwindcss()],
+    // ...
+  },
+})
+```
+
+electron-vite 2 → 5 主要变更：
+
+- 配置必须为 ESM
+- 内置 externalizeDepsPlugin 行为变化
+- 兼容 target 随 Electron 版本自动调整（Electron 42 对应 Chromium 新 target）
+- **无需** Vite 8 的 Rolldown 迁移步骤
+
+---
+
+## 七、风险与应对
+
+| 风险 | 影响 | 应对 | 状态 |
+|------|------|------|------|
+| electron-vite 2→5 跨度大 | 配置/API breaking | 对照官方迁移指南；在独立分支验证 dev + build | ⬜ |
+| Electron 42 + Node 24 postinstall | install 失败 | pnpm overrides `yauzl: ^3.3.1`；`.npmrc` electron 镜像 | ⬜ |
+| pnpm + electron-builder | 打包缺依赖 | `.npmrc` hoisted；native 模块放 dependencies | ⬜ |
+| pnpm + `@electron-toolkit/utils` 嵌套 electron | macOS EPERM symlink 错误 | `pnpm.overrides` 强制去重 | ✅ 已解决 |
+| pnpm hoisting 导致 electron 子包找不到 vue-tsc bin | typecheck 失败 | vue-tsc 提升到根 devDeps | ✅ 已解决 |
+| vue-tsc 3 比 2 更严格 | 暴露 pre-existing 类型错误 | 逐个修复；Phase 0 已修 `HudApi` 缺失字段 | ✅ 已解决 |
+| `@vitejs/plugin-vue` 5 不支持 Vite 7 peer | peer dep 警告 | Phase 3 升 plugin-vue 6（**无需 Vite 8**） | ⬜ 已知 |
+| Electron 二进制下载慢 | `pnpm i` 看似卡住 | `.npmrc` 配置 `electron_mirror` | ✅ 已配置 |
+| Naive UI 体积 | dashboard 首屏变大 | 按需 import；settings 面板 lazy load | ⬜ |
+| UI 统一工作量大 | 延期 | 可分批：先 settings，再 dashboard panels | ⬜ |
+| Ruff 首次 format 大 diff | review 困难、与功能 PR 冲突 | 独立 `chore/python-ruff` 分支/PR | ⬜ |
+
+---
+
+## 八、推荐执行顺序
+
+```
+Phase 0  pnpm monorepo 脚手架 ✅
+   ↓
+Phase 0.5  Python Ruff（独立小步，可与下面并行）
+   ↓
+Phase 1  抽 @virtual-tcu/shared（零 UI 变更，风险最低）
+   ↓
+Phase 3  工具链升级（可与 Phase 2 并行，在 feature 分支）
+   ↓
+Phase 2  抽 @virtual-tcu/ui + Naive 统一（最大工作量）
+   ↓
+Phase 4  目录 rename + CI
+   ↓
+Phase 5  清理
+```
+
+### 建议分支
+
+| 分支 | 内容 |
+|------|------|
+| `refactor/monorepo-scaffold` | Phase 0 + 1 |
+| `chore/python-ruff` | Phase 0.5 |
+| `refactor/vite7-electron42` | Phase 3 |
+| `refactor/naive-ui-unify` | Phase 2 |
+| 合并到 `main` 后打 tag 发版 | Phase 4 + 5 |
+
+---
+
+## 九、刻意不在范围
+
+- Python 后端**目录结构**不变（逻辑仍在 `virtual_tcu/`）
+- Python **mypy / pyright** 暂不引入（Ruff 已覆盖 lint + format）
+- HUD renderer 不引入 Naive UI，也不引入 Tailwind（保持 scoped 纯 CSS）
+- 不引入 Pinia（现有 composable + WS 模型足够）
+- 不做 SSR / micro-frontend
+
+---
+
+## 变更日志
+
+| 日期 | 说明 |
+|------|------|
+| 2026-05-25 | 初版方案导出 |
+| 2026-05-25 | 明确 Naive UI + Tailwind 分层共存；electron 已支持 Tailwind，HUD 除外 |
+| 2026-05-25 | **Phase 0 完成**。pnpm workspace 就绪，ESLint/Prettier/TS 统一到根级，双包 typecheck 通过 |
+| 2026-05-25 | **方案调整**：放弃 Vite 8 + electron-vite 6 beta，改为 **Vite 7 统一 + electron-vite 5 stable** |
+| 2026-05-25 | 新增 **Phase 0.5 — Python Ruff**（lint + format，替代 Black/Flake8/isort） |

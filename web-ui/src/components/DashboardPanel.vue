@@ -1,5 +1,5 @@
 <script setup>
-  import { toRefs, computed } from 'vue'
+  import { computed, toRefs } from 'vue'
   import DashboardChart from './DashboardChart.vue'
 
   const props = defineProps({

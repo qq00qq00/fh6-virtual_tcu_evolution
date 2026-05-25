@@ -1,0 +1,7 @@
+packages:
+  - web-ui
+  - electron
+
+allowBuilds:
+  electron: true
+  esbuild: true

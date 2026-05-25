@@ -1,5 +1,5 @@
 <script setup>
-  import { toRefs, ref } from 'vue'
+  import { ref, toRefs } from 'vue'
   import { col, sectionTitle, statRow, tabActive, tabBase } from '@/styles/ui'
   import { useStatsHistoryPanel } from './stats-history-panel'
 

@@ -1,17 +1,19 @@
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import type {SliderDef} from '@web-ui/config/settings';
+import type {AppLocale} from '@web-ui/i18n';
+import { useNetworkSettings } from '@web-ui/components/network-settings'
 import { useTcuStore } from '@web-ui/composables/useTcuStore'
 import { DRIVE_MODES } from '@web-ui/config/modes'
 import {
   FEATURE_TOGGLES,
   HOTKEY_FIELDS,
   SETTING_SLIDERS,
-  SHIFT_KEY_FIELDS,
-  type SliderDef,
+  SHIFT_KEY_FIELDS
+  
 } from '@web-ui/config/settings'
-import { setAppLocale, type AppLocale } from '@web-ui/i18n'
+import {  setAppLocale } from '@web-ui/i18n'
 import { formatDuration } from '@web-ui/utils/format'
-import { useNetworkSettings } from '@web-ui/components/network-settings'
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useUpdater } from './useUpdater'
 
 export const GITHUB_REPO_URL = 'https://github.com/Forza-Love/fh6-virtual_tcu'

@@ -13,13 +13,15 @@
  *   - Wire up auto-update via electron-updater + GitHub Releases.
  */
 
-import { app, BrowserWindow, ipcMain, Menu, shell, Tray, nativeImage } from 'electron'
-import { autoUpdater } from 'electron-updater'
-import { spawn, ChildProcess } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process';
+import type {BackendEndpoints} from './backend-config';
+import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { endpointsFromHttpUrl, parseWebUiUrl, resolveBackendEndpoints, type BackendEndpoints } from './backend-config'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray } from 'electron'
+import { autoUpdater } from 'electron-updater'
+import {  endpointsFromHttpUrl, parseWebUiUrl, resolveBackendEndpoints } from './backend-config'
 
 const READY_MARKER = '[backend-ready]'
 
@@ -49,7 +51,7 @@ function resolveBackendCommand(): { cmd: string; args: string[]; cwd: string } {
   // Dev: use live Python backend so web-ui changes in virtual_tcu/web/dist
   // are picked up after `npm run build`. Set TCU_USE_FROZEN_BACKEND=1 to
   // test against dist/VirtualTCU/VirtualTCU.exe instead.
-  if (!is.dev || process.env['TCU_USE_FROZEN_BACKEND'] === '1') {
+  if (!is.dev || process.env.TCU_USE_FROZEN_BACKEND === '1') {
     const devExe = join(__dirname, '..', '..', '..', 'dist', 'VirtualTCU', 'VirtualTCU.exe')
     if (existsSync(devExe)) {
       return {
@@ -155,15 +157,15 @@ function stopBackend(): void {
 // ----- Windows ---------------------------------------------------------------
 
 function settingsPagePath(): string {
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    return `${process.env['ELECTRON_RENDERER_URL']}/settings-renderer/index.html`
+  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+    return `${process.env.ELECTRON_RENDERER_URL}/settings-renderer/index.html`
   }
   return join(__dirname, '..', 'renderer', 'settings-renderer', 'index.html')
 }
 
 function hudPagePath(): string {
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    return `${process.env['ELECTRON_RENDERER_URL']}/hud-renderer/index.html`
+  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+    return `${process.env.ELECTRON_RENDERER_URL}/hud-renderer/index.html`
   }
   return join(__dirname, '..', 'renderer', 'hud-renderer', 'index.html')
 }
@@ -206,7 +208,7 @@ function createSettingsWindow() {
     settingsWindow = null
   })
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
     settingsWindow.loadURL(settingsPagePath())
   } else {
     settingsWindow.loadFile(settingsPagePath())
@@ -278,7 +280,7 @@ function createHudWindow() {
     hudWindow = null
   })
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
     hudWindow.loadURL(hudPagePath())
   } else {
     hudWindow.loadFile(hudPagePath())

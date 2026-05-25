@@ -1,5 +1,5 @@
-import { fileURLToPath, URL } from 'node:url'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'

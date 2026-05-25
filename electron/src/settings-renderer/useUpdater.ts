@@ -1,5 +1,5 @@
-import { onMounted, onUnmounted, ref } from 'vue'
 import type { UpdaterStatus } from '../preload/main'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 export type UpdaterState =
   | { kind: 'idle' }

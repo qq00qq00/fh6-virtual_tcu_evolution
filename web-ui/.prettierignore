@@ -1,5 +1,0 @@
-dist
-node_modules
-../virtual_tcu/web/dist
-package-lock.json
-pnpm-lock.yaml

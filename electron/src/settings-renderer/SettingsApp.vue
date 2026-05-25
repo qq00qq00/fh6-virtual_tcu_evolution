@@ -1,6 +1,24 @@
 <script setup lang="ts">
-import { computed, h } from 'vue'
 import {
+  ArrowDownOutline,
+  ArrowUpOutline,
+  CloudDownloadOutline,
+  EyeOutline,
+  HelpCircleOutline,
+  LogoGithub,
+  OpenOutline,
+  RefreshOutline,
+  RocketOutline,
+  SettingsOutline,
+  SpeedometerOutline,
+  StatsChartOutline,
+  TimeOutline,
+} from '@vicons/ionicons5'
+import {
+  dateEnUS,
+  dateZhCN,
+  enUS,
+  lightTheme,
   NBadge,
   NButton,
   NCard,
@@ -20,35 +38,15 @@ import {
   NScrollbar,
   NSelect,
   NSlider,
-  NSpace,
   NStatistic,
   NSwitch,
   NTabPane,
   NTabs,
   NTag,
   NText,
-  darkTheme,
-  lightTheme,
   zhCN,
-  enUS,
-  dateZhCN,
-  dateEnUS,
 } from 'naive-ui'
-import {
-  ArrowDownOutline,
-  ArrowUpOutline,
-  CloudDownloadOutline,
-  EyeOutline,
-  HelpCircleOutline,
-  OpenOutline,
-  LogoGithub,
-  RefreshOutline,
-  RocketOutline,
-  SettingsOutline,
-  SpeedometerOutline,
-  StatsChartOutline,
-  TimeOutline,
-} from '@vicons/ionicons5'
+import { computed, h } from 'vue'
 import { useSettingsApp } from './SettingsApp'
 
 const {
@@ -155,7 +153,7 @@ const tabIcon = {
   about: HelpCircleOutline,
 } as const
 
-function renderTabIcon(key: keyof typeof tabIcon) {
+function _renderTabIcon(key: keyof typeof tabIcon) {
   return () => h(NIcon, { size: 16 }, { default: () => h(tabIcon[key]) })
 }
 
