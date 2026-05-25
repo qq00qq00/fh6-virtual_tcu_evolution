@@ -549,15 +549,15 @@ function modeTagText(id: string, i18nKey: string) {
                       {{ t('extras.shiftKeyHint') }}
                     </NText>
                     <NGrid :cols="2" :x-gap="16" :y-gap="10">
-                      <NGridItem v-for="h in shiftKeyFields" :key="h.key">
+                      <NGridItem v-for="h1 in shiftKeyFields" :key="h1.key">
                         <NFlex justify="space-between" align="center" :size="8">
-                          <NText>{{ t(`extras.${h.i18nKey}`) }}</NText>
+                          <NText>{{ t(`extras.${h1.i18nKey}`) }}</NText>
                           <NInput
-                            :value="configText(h.key)"
-                            :placeholder="h.placeholder"
+                            :value="configText(h1.key)"
+                            :placeholder="h1.placeholder"
                             size="small"
                             style="width: 100px; font-family: ui-monospace, monospace;"
-                            @update:value="(v) => store.setConfig(h.key, v.trim().toLowerCase())"
+                            @update:value="(v) => store.setConfig(h1.key, v.trim().toLowerCase())"
                           />
                         </NFlex>
                       </NGridItem>
@@ -569,15 +569,15 @@ function modeTagText(id: string, i18nKey: string) {
                       {{ t('extras.hotkeyHint') }}
                     </NText>
                     <NGrid :cols="2" :x-gap="16" :y-gap="10">
-                      <NGridItem v-for="h in hotkeyFields" :key="h.key">
+                      <NGridItem v-for="h1 in hotkeyFields" :key="h1.key">
                         <NFlex justify="space-between" align="center" :size="8">
-                          <NText>{{ t(`extras.${h.i18nKey}`) }}</NText>
+                          <NText>{{ t(`extras.${h1.i18nKey}`) }}</NText>
                           <NInput
-                            :value="configText(h.key)"
-                            :placeholder="h.placeholder"
+                            :value="configText(h1.key)"
+                            :placeholder="h1.placeholder"
                             size="small"
                             style="width: 100px; font-family: ui-monospace, monospace;"
-                            @update:value="(v) => store.setConfig(h.key, v.trim().toLowerCase())"
+                            @update:value="(v) => store.setConfig(h1.key, v.trim().toLowerCase())"
                           />
                         </NFlex>
                       </NGridItem>
@@ -729,7 +729,7 @@ function modeTagText(id: string, i18nKey: string) {
                   <NScrollbar v-else style="max-height: calc(100vh - 280px);">
                     <NFlex vertical :size="6">
                       <NCard
-                        v-for="(h, i) in historyItems"
+                        v-for="(h1, i) in historyItems"
                         :key="i"
                         size="small"
                         embedded
@@ -737,22 +737,22 @@ function modeTagText(id: string, i18nKey: string) {
                         <NFlex align="center" justify="space-between">
                           <NFlex align="center" :size="10">
                             <NIcon
-                              :component="h.action === 'UP' ? ArrowUpOutline : ArrowDownOutline"
+                              :component="h1.action === 'UP' ? ArrowUpOutline : ArrowDownOutline"
                               size="18"
-                              :color="h.action === 'UP' ? '#16a34a' : '#d97706'"
+                              :color="h1.action === 'UP' ? '#16a34a' : '#d97706'"
                             />
                             <NText strong>
-                              {{ h.action }}
+                              {{ h1.action }}
                             </NText>
                             <NTag size="small" :bordered="false">
-                              gear {{ h.gear }}
+                              gear {{ h1.gear }}
                             </NTag>
                             <NText depth="3" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">
-                              {{ h.reason || h.rule }}
+                              {{ h1.reason || h1.rule }}
                             </NText>
                           </NFlex>
                           <NText depth="3" style="font-family: ui-monospace, monospace; font-size: 11px;">
-                            {{ shiftHistoryTimestamp(h.ts) }} · {{ h.rpm_pct }}% · T{{ h.throttle }} · B{{ h.brake }}
+                            {{ shiftHistoryTimestamp(h1.ts) }} · {{ h1.rpm_pct }}% · T{{ h1.throttle }} · B{{ h1.brake }}
                           </NText>
                         </NFlex>
                       </NCard>

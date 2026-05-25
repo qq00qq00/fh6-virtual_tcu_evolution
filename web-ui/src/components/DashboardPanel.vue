@@ -44,7 +44,7 @@
     const totalLeds = 20
     const threshold = index / totalLeds
 
-    if (pct < threshold) return 'bg-[#18181b] shadow-none'
+    if (pct < threshold) return 'bg-tcu-bg-3 shadow-none'
 
     if (index > 17) return 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.9)]'
     if (index > 13) return 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9)]'
@@ -64,12 +64,12 @@
 
 <template>
   <div
-    class="bg-tcu-bg-0 flex h-full min-h-0 flex-col justify-start gap-3 overflow-hidden border-l border-[#1a1a24] p-4 font-mono text-[#e4e4e7] select-none"
+    class="bg-tcu-bg-0 border-tcu-border text-tcu-txt flex h-full min-h-0 flex-col justify-start gap-3 overflow-hidden border-l p-4 font-mono select-none"
   >
     <div v-if="live && telemetry" class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <div class="flex shrink-0 flex-col gap-3">
         <div
-          class="flex h-10 w-full shrink-0 items-center justify-between gap-1 rounded-md border border-[#27272a] bg-[#0a0a0c] px-2"
+          class="border-tcu-border bg-tcu-bg-1 flex h-10 w-full shrink-0 items-center justify-between gap-1 rounded-md border px-2"
         >
           <div
             v-for="i in 20"
@@ -82,7 +82,7 @@
         <div class="grid h-[280px] shrink-0 grid-cols-[220px_1fr_180px] gap-3 overflow-hidden">
           <div class="flex flex-col gap-3">
             <div
-              class="relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-lg border border-[#27272a] bg-[#0a0a0c] shadow-inner"
+              class="border-tcu-border bg-tcu-bg-1 relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-lg border shadow-inner"
             >
               <div
                 v-if="hint"
@@ -107,7 +107,7 @@
             </div>
 
             <div
-              class="flex h-24 flex-col items-center justify-center rounded-lg border border-[#27272a] bg-[#0a0a0c]"
+              class="border-tcu-border bg-tcu-bg-1 flex h-24 flex-col items-center justify-center rounded-lg border"
             >
               <div class="text-6xl font-bold tracking-tight text-white tabular-nums">
                 {{ speed }}
@@ -118,7 +118,7 @@
 
           <div class="flex flex-col gap-3">
             <div
-              class="relative flex flex-1 flex-col justify-center rounded-lg border border-[#27272a] bg-[#0a0a0c] p-5"
+              class="border-tcu-border bg-tcu-bg-1 relative flex flex-1 flex-col justify-center rounded-lg border p-5"
             >
               <div class="mb-2 flex items-end justify-between">
                 <div
@@ -136,7 +136,7 @@
               </div>
 
               <div
-                class="relative mt-4 h-6 w-full overflow-hidden rounded-sm border border-[#27272a] bg-[#18181b]"
+                class="border-tcu-border bg-tcu-bg-3 relative mt-4 h-6 w-full overflow-hidden rounded-sm border"
               >
                 <div
                   class="absolute top-0 left-0 h-full transition-all duration-75"
@@ -162,7 +162,7 @@
 
             <div class="grid h-20 grid-cols-3 gap-3">
               <div
-                class="flex flex-col justify-between rounded-lg border border-[#27272a] bg-[#0a0a0c] p-3"
+                class="border-tcu-border bg-tcu-bg-1 flex flex-col justify-between rounded-lg border p-3"
               >
                 <span class="text-tcu-txt-dim text-[10px] tracking-widest uppercase">Power</span>
                 <div class="text-2xl font-bold text-white tabular-nums">
@@ -170,7 +170,7 @@
                 </div>
               </div>
               <div
-                class="flex flex-col justify-between rounded-lg border border-[#27272a] bg-[#0a0a0c] p-3"
+                class="border-tcu-border bg-tcu-bg-1 flex flex-col justify-between rounded-lg border p-3"
               >
                 <span class="text-tcu-txt-dim text-[10px] tracking-widest uppercase">Torque</span>
                 <div class="text-2xl font-bold text-white tabular-nums">
@@ -178,7 +178,7 @@
                 </div>
               </div>
               <div
-                class="relative flex flex-col justify-between overflow-hidden rounded-lg border border-[#27272a] bg-[#0a0a0c] p-3"
+                class="border-tcu-border bg-tcu-bg-1 relative flex flex-col justify-between overflow-hidden rounded-lg border p-3"
               >
                 <span class="text-tcu-txt-dim z-10 text-[10px] tracking-widest uppercase"
                   >Turbo</span
@@ -195,14 +195,14 @@
           </div>
 
           <div
-            class="flex justify-between gap-2 rounded-lg border border-tcu-border bg-tcu-bg-1 p-4"
+            class="border-tcu-border bg-tcu-bg-1 flex justify-between gap-2 rounded-lg border p-4"
           >
             <div class="flex h-full w-10 flex-col items-center justify-end gap-2">
               <span class="text-[10px] font-bold text-white tabular-nums">{{
                 Math.round(clutch)
               }}</span>
               <div
-                class="flex w-6 flex-1 items-end overflow-hidden rounded border border-tcu-border bg-tcu-bg-3"
+                class="border-tcu-border bg-tcu-bg-3 flex w-6 flex-1 items-end overflow-hidden rounded border"
               >
                 <div
                   class="w-full bg-blue-500 transition-all duration-75"
@@ -217,7 +217,7 @@
                 Math.round(brake)
               }}</span>
               <div
-                class="flex w-6 flex-1 items-end overflow-hidden rounded border border-tcu-border bg-tcu-bg-3"
+                class="border-tcu-border bg-tcu-bg-3 flex w-6 flex-1 items-end overflow-hidden rounded border"
               >
                 <div
                   class="bg-danger w-full transition-all duration-75"
@@ -232,7 +232,7 @@
                 Math.round(throttle)
               }}</span>
               <div
-                class="flex w-6 flex-1 items-end overflow-hidden rounded border border-tcu-border bg-tcu-bg-3"
+                class="border-tcu-border bg-tcu-bg-3 flex w-6 flex-1 items-end overflow-hidden rounded border"
               >
                 <div
                   class="bg-accent w-full transition-all duration-75"
@@ -246,7 +246,7 @@
 
         <div class="grid h-[156px] shrink-0 grid-cols-[1fr_200px_200px] gap-3 overflow-hidden">
           <div
-            class="relative flex flex-col justify-center overflow-hidden rounded-lg border bg-tcu-bg-1 p-5"
+            class="bg-tcu-bg-1 relative flex flex-col justify-center overflow-hidden rounded-lg border p-5"
             :class="
               state === 'SHIFTING'
                 ? 'border-accent-2/50 bg-accent-2/5'
@@ -283,7 +283,7 @@
           </div>
 
           <div
-            class="flex flex-col overflow-hidden rounded-lg border border-[#27272a] bg-[#0a0a0c] p-4"
+            class="border-tcu-border bg-tcu-bg-1 flex flex-col overflow-hidden rounded-lg border p-4"
           >
             <div class="text-tcu-txt-dim mb-3 text-[10px] tracking-widest uppercase">Dynamics</div>
 
@@ -317,7 +317,7 @@
                   >{{ Math.round(gripUsage) }}%</span
                 >
               </div>
-              <div class="h-1.5 w-full overflow-hidden rounded-full bg-[#18181b]">
+              <div class="bg-tcu-bg-3 h-1.5 w-full overflow-hidden rounded-full">
                 <div
                   class="h-full transition-all duration-75"
                   :class="gripUsage > 90 ? 'bg-danger' : gripUsage > 75 ? 'bg-warn' : 'bg-accent'"
@@ -328,7 +328,7 @@
           </div>
 
           <div
-            class="relative flex flex-col items-center justify-center overflow-hidden rounded-lg border border-[#27272a] bg-[#0a0a0c] p-3"
+            class="border-tcu-border bg-tcu-bg-1 relative flex flex-col items-center justify-center overflow-hidden rounded-lg border p-3"
           >
             <div
               class="text-tcu-txt-dim absolute top-2 left-3 text-[10px] tracking-widest uppercase"
@@ -337,12 +337,12 @@
             </div>
 
             <div
-              class="relative mt-3 h-20 w-20 shrink-0 rounded-full border-2 border-[#27272a] bg-[#111113]"
+              class="border-tcu-border bg-tcu-bg-2 relative mt-3 h-20 w-20 shrink-0 rounded-full border-2"
             >
-              <div class="absolute top-1/2 left-0 h-[1px] w-full bg-[#27272a]"></div>
-              <div class="absolute top-0 left-1/2 h-full w-[1px] bg-[#27272a]"></div>
+              <div class="bg-tcu-border absolute top-1/2 left-0 h-px w-full"></div>
+              <div class="bg-tcu-border absolute top-0 left-1/2 h-full w-px"></div>
               <div
-                class="absolute top-[25%] left-[25%] h-1/2 w-1/2 rounded-full border border-[#27272a]/50"
+                class="border-tcu-border/50 absolute top-[25%] left-[25%] h-1/2 w-1/2 rounded-full border"
               ></div>
 
               <div
@@ -372,9 +372,9 @@
 
     <div
       v-else
-      class="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-[#27272a] bg-[#0a0a0c] text-[#a1a1aa]"
+      class="border-tcu-border bg-tcu-bg-1 text-tcu-txt-muted flex h-full flex-col items-center justify-center rounded-lg border border-dashed"
     >
-      <div class="mb-3 text-4xl font-black tracking-widest text-[#27272a]">OFFLINE</div>
+      <div class="text-tcu-border mb-3 text-4xl font-black tracking-widest">OFFLINE</div>
       <div class="text-tcu-txt-dim flex items-center gap-2 text-sm tracking-widest uppercase">
         <div class="bg-danger h-2 w-2 animate-pulse rounded-full"></div>
         Awaiting UDP Telemetry...
