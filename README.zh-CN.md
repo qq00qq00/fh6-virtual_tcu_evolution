@@ -1,8 +1,10 @@
 # Virtual TCU v13.0 — Forza Horizon 6
 
+[![Discord](https://img.shields.io/discord/1508360305712037988?label=Discord&color=5865F2)](https://discordapp.com/invite/ghj3PGe9)
+
 **简体中文 | [English](README.md)**
 
-> 本项目由 **Insightful** 维护，面向 [**Forza Mods**](https://discord.gg/forzamods) Discord 社区用户。
+> 本项目核心功能源码由 **Insightful** 提供，面向 [**Forza Mods**](https://discord.gg/forzamods) Discord 社区用户。
 
 面向《极限竞速：地平线 6》的外部自适应变速箱控制器。通过 UDP 读取游戏遥测，根据驾驶风格、油门、转速、车速与刹车等信号自动换挡，并向游戏注入键盘按键（**E** 升档、**Q** 降档）。
 

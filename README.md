@@ -1,8 +1,10 @@
 # Virtual TCU v13.0 — Forza Horizon 6
 
+[![Discord](https://img.shields.io/discord/1508360305712037988?label=Discord&color=5865F2)](https://discordapp.com/invite/ghj3PGe9)
+
 **English | [简体中文](README.zh-CN.md)**
 
-> This project is maintained for the [**Forza Mods**](https://discord.gg/forzamods) Discord community by **Insightful**.
+> This project's core functionality is provided by **Insightful**, maintained for the [**Forza Mods**](https://discord.gg/forzamods) Discord community.
 
 An external adaptive transmission controller for *Forza Horizon 6*. It reads real-time UDP telemetry from the game, decides when to shift based on driving style, throttle, RPM, speed, and brake input, and injects keyboard keys (**E** = upshift, **Q** = downshift).
 
