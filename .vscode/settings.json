@@ -4,7 +4,9 @@
   // 将tailwindcss入口文件关联到tailwindcss语言服务
   "files.associations": {
     "app.css": "tailwindcss",
-    "ui.css": "tailwindcss"
+    "ui.css": "tailwindcss",
+    "components.css": "tailwindcss",
+    "theme.css": "tailwindcss"
   },
   // 格式化代码
   "editor.formatOnSave": true,

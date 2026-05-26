@@ -67,3 +67,4 @@ ehthumbs.db
 node_modules
 
 .claude/*.local.json
+.reasonix/
