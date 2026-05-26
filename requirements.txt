@@ -2,9 +2,9 @@
 keyboard>=0.13.5
 aiohttp>=3.9.0
 pypresence>=4.3.0
-vgamepad>=0.1.0
-# ^ NOTE: pip installing vgamepad auto-launches the ViGEmBus driver installer.
-#   To skip that (e.g. in CI / headless), set before pip install:
+vgamepad @ git+https://github.com/yannbouteiller/vgamepad@v0.1.3
+# ^ PyPI 仅发布到 0.1.0（无 wheel、无 CI skip 支持）。0.1.3 起支持 VGAMEPAD_SKIP_VIGEMBUS_INSTALL。
+#   CI / 无界面环境安装前设置：
 #     $env:VGAMEPAD_SKIP_VIGEMBUS_INSTALL="true"   (PowerShell)
 #     set VGAMEPAD_SKIP_VIGEMBUS_INSTALL=true        (CMD)
-#   The driver is a one-time system install. Many gaming tools already ship it.
+#   ViGEmBus 驱动是用户本机一次性安装；打包不需要在 CI 里装驱动。
