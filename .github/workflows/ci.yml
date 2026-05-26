@@ -33,7 +33,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Lint (ESLint)
-        run: eslint .
+        run: pnpm exec eslint .
 
       - name: Setup Python
         uses: actions/setup-python@v6
