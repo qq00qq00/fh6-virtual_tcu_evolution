@@ -1,5 +1,6 @@
 {
   "name": "virtual-tcu-monorepo",
+  "version": "13.0.1",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@10.33.0",
@@ -12,13 +13,14 @@
     "dev:electron": "pnpm --filter virtual-tcu dev",
     "build:dashboard": "pnpm --filter virtual-tcu-web-ui build",
     "build:electron": "pnpm --filter virtual-tcu build",
-    "build": "pnpm build:dashboard && pnpm build:electron",
+    "version:sync": "node scripts/sync-version.mjs",
+    "build": "pnpm version:sync && pnpm build:dashboard && pnpm build:electron",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . && ruff check virtual_tcu virtual_tcu.py",
     "lint:py": "ruff check virtual_tcu virtual_tcu.py",
     "format": "prettier --write . && ruff format virtual_tcu virtual_tcu.py",
     "format:py": "ruff format virtual_tcu virtual_tcu.py",
-    "prepare": "husky"
+    "prepare": "husky && node scripts/sync-version.mjs"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.11.0",

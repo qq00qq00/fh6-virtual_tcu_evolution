@@ -32,6 +32,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Sync version from root package.json
+        run: pnpm version:sync
+
       - name: Build Dashboard (Vue UI)
         run: pnpm build:dashboard
 

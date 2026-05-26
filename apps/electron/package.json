@@ -16,6 +16,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "prepackage": "node ../../scripts/sync-version.mjs",
     "package": "electron-vite build && electron-builder --win --publish never",
     "release": "electron-vite build && electron-builder --win --publish always",
     "lint": "eslint .",
