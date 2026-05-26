@@ -1,5 +1,3 @@
-from typing import Optional
-
 from virtual_tcu.telemetry.model import Telemetry
 
 
@@ -13,7 +11,7 @@ class YawTransientDetector:
     POST_EVENT_HOLD_MS = 200
 
     def __init__(self):
-        self._yaw_high_since: Optional[float] = None
+        self._yaw_high_since: float | None = None
         self._block_until: float = 0.0
         self._currently_blocking: bool = False
 
@@ -38,4 +36,3 @@ class YawTransientDetector:
     @property
     def is_blocking(self) -> bool:
         return self._currently_blocking
-

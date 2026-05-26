@@ -1,5 +1,6 @@
 from virtual_tcu.telemetry.model import Telemetry
 
+
 class AirtimeDetector:
     """Detects all four wheels off the ground. Primary: vertical accel
     near zero (free fall). Confirmation: all four wheels spinning. 3
@@ -42,4 +43,3 @@ class AirtimeDetector:
     @property
     def is_airborne(self) -> bool:
         return self._is_airborne
-

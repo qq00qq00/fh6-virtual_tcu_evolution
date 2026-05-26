@@ -1,8 +1,7 @@
-from typing import Optional
-
 from virtual_tcu.config.constants import Cfg
 from virtual_tcu.input.keyboard import VirtualKeyboard
 from virtual_tcu.telemetry.model import Telemetry
+
 
 class ReverseHoldDetector:
     """For wheel users without a Reverse button: hold Q while stopped in
@@ -11,8 +10,8 @@ class ReverseHoldDetector:
 
     def __init__(self, kb: VirtualKeyboard):
         self._kb = kb
-        self._down_pressed_since: Optional[float] = None
-        self._up_pressed_since: Optional[float] = None
+        self._down_pressed_since: float | None = None
+        self._up_pressed_since: float | None = None
         self._down_armed = True
         self._up_armed = True
 

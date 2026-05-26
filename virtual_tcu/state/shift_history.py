@@ -1,14 +1,13 @@
 import threading
 import time
 from collections import deque
-from typing import Deque, Optional
 
 from virtual_tcu.telemetry.model import Telemetry
 
 
 class ShiftHistory:
     def __init__(self, max_size: int = 20):
-        self._history: Deque[dict] = deque(maxlen=max_size)
+        self._history: deque[dict] = deque(maxlen=max_size)
         self._lock = threading.Lock()
 
     def record(
@@ -17,7 +16,7 @@ class ShiftHistory:
         td: Telemetry,
         reason: str = "",
         rule: str = "",
-        blocked_by: Optional[str] = None,
+        blocked_by: str | None = None,
     ):
         with self._lock:
             self._history.append(
@@ -38,4 +37,3 @@ class ShiftHistory:
     def snapshot(self) -> list:
         with self._lock:
             return list(self._history)
-

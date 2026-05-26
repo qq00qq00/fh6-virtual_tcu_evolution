@@ -14,8 +14,10 @@
     "build:electron": "pnpm --filter virtual-tcu build",
     "build": "pnpm build:dashboard && pnpm build:electron",
     "typecheck": "pnpm -r typecheck",
-    "lint": "eslint .",
-    "format": "prettier --write ."
+    "lint": "eslint . && ruff check virtual_tcu virtual_tcu.py",
+    "lint:py": "ruff check virtual_tcu virtual_tcu.py",
+    "format": "prettier --write . && ruff format virtual_tcu virtual_tcu.py",
+    "format:py": "ruff format virtual_tcu virtual_tcu.py"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.11.0",

@@ -1,7 +1,7 @@
 from collections import deque
-from typing import Deque, Dict, Optional
 
 from virtual_tcu.telemetry.model import Telemetry
+
 
 class RevLimiterDetector:
     """Learns the real rev limiter per car. Forza's reported engine_max_rpm
@@ -24,9 +24,9 @@ class RevLimiterDetector:
     MIN_OSCILLATION = 150.0
 
     def __init__(self):
-        self._redline: Dict[int, float] = {}
-        self._rpm_window: Dict[int, Deque[float]] = {}
-        self._peak_hold: Dict[int, tuple] = {}
+        self._redline: dict[int, float] = {}
+        self._rpm_window: dict[int, deque[float]] = {}
+        self._peak_hold: dict[int, tuple] = {}
 
     def _reset(self, car: int):
         self._rpm_window.pop(car, None)
@@ -34,10 +34,15 @@ class RevLimiterDetector:
 
     def observe(self, td: Telemetry, last_downshift_time: float, now: float):
         car = td.car_ordinal
-        if (car <= 0 or td.is_shifting or td.engine_max_rpm <= 0
-                or td.throttle < self.MIN_THROTTLE
-                or now - last_downshift_time < self.POST_SHIFT_IGNORE_S
-                or td.rear_slip > 0.8 or td.front_slip > 0.8):
+        if (
+            car <= 0
+            or td.is_shifting
+            or td.engine_max_rpm <= 0
+            or td.throttle < self.MIN_THROTTLE
+            or now - last_downshift_time < self.POST_SHIFT_IGNORE_S
+            or td.rear_slip > 0.8
+            or td.front_slip > 0.8
+        ):
             # Wheelspin makes RPM oscillate at WOT without being the
             # limiter — exclude it, same as the gear-ratio calibrator.
             self._reset(car)
@@ -51,8 +56,7 @@ class RevLimiterDetector:
         wmax, wmin = max(win), min(win)
         # Must be high enough to be a plausible limiter, and oscillating
         # (the sawtooth) — a flat WOT hill-crawl is rejected here.
-        if (wmax < td.engine_max_rpm * self.MIN_PEAK_PCT
-                or (wmax - wmin) < self.MIN_OSCILLATION):
+        if wmax < td.engine_max_rpm * self.MIN_PEAK_PCT or (wmax - wmin) < self.MIN_OSCILLATION:
             self._peak_hold.pop(car, None)
             return
 
@@ -72,6 +76,5 @@ class RevLimiterDetector:
             if held_peak > self._redline.get(car, 0.0):
                 self._redline[car] = held_peak
 
-    def effective_redline(self, td: Telemetry) -> Optional[float]:
+    def effective_redline(self, td: Telemetry) -> float | None:
         return self._redline.get(td.car_ordinal)
-

@@ -9,7 +9,7 @@
 ## 总体进度
 
 - [x] Phase 0 — 基础设施 ✅ 2026-05-25
-- [ ] Phase 0.5 — Python Ruff（lint + format）
+- [x] Phase 0.5 — Python Ruff（lint + format）✅ 2026-05-26
 - [x] Phase 1 — 抽取 `@virtual-tcu/shared` ✅ 2026-05-25
 - [x] Phase 2 — 抽取 `@virtual-tcu/ui` + Naive UI 统一 ✅ 代码 2026-05-26 / ⏳ 运行时验收待定
 - [ ] Phase 3 — 工具链升级（**Vite 7 统一** / Electron 42 / electron-vite 5）
@@ -25,8 +25,8 @@
 | **Phase 0** | ✅ 已完成 — pnpm workspace、根级 ESLint/Prettier/TS、双包 typecheck 通过 |
 | **Phase 1** | ✅ 已完成 — `@virtual-tcu/shared` 抽取完毕，双包 typecheck + lint 通过 |
 | **Phase 2** | ✅ 代码完成 / ⏳ 验收待定 — `@virtual-tcu/ui` 已创建，settings/layout/dashboard 组件已迁入；web-ui 侧 composable 已 re-export，**.vue 仍为并行副本**（仅 import 路径不同）；旧 `web-ui/styles/ui.css` 已删，样式迁至 `packages/ui/styles/components.css` |
-| **Phase 0.5 / 3–5** | ⬜ 未开始 |
-| **Python lint/format** | ⬜ 无配置（`.gitignore` 已有 `.ruff_cache/` 占位，待 Phase 0.5 落地） |
+| **Phase 0.5** | ✅ 已完成 — Ruff lint+format 就绪，零 error，22 files reformatted |
+| **Python lint/format** | ✅ Ruff 0.15.14（`ruff check` + `ruff format`）；配 `lint:py` / `format:py` 脚本 |
 | **workspace 结构** | `packages/shared` + `packages/ui` + `web-ui` + `electron`（原位，尚未 rename 到 `apps/`） |
 | **pnpm** | 10.33.0（`packageManager` 已锁定；原方案 11.3 暂未升级） |
 | **web-ui Vite** | ^7.3.2（已是目标版本） |

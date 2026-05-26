@@ -6,9 +6,10 @@ import argparse
 import csv
 import json
 import sys
+from collections.abc import Iterable
 from dataclasses import fields
 from pathlib import Path
-from typing import IO, Iterable, Optional, TextIO
+from typing import IO, TextIO
 
 from virtual_tcu.telemetry.model import Telemetry
 from virtual_tcu.telemetry.parser import parse_fh6_packet
@@ -25,7 +26,7 @@ def _gear_label(gear: int) -> str:
     return str(gear)
 
 
-def format_text_line(rel_ms: int, t: Telemetry, *, prev_gear: Optional[int]) -> str:
+def format_text_line(rel_ms: int, t: Telemetry, *, prev_gear: int | None) -> str:
     shift = ""
     if prev_gear is not None and t.gear != prev_gear:
         shift = f"  << {_gear_label(prev_gear)}->{_gear_label(t.gear)}"
@@ -75,13 +76,13 @@ def format_replay(
     fmt: str,
     shift_only: bool,
 ) -> dict:
-    prev_gear: Optional[int] = None
+    prev_gear: int | None = None
     parsed = 0
     skipped = 0
     shifts = 0
-    first_ms: Optional[int] = None
-    last_ms: Optional[int] = None
-    car_ordinal: Optional[int] = None
+    first_ms: int | None = None
+    last_ms: int | None = None
+    car_ordinal: int | None = None
     tune_keys: set[tuple[int, int, int]] = set()
     csv_rows: list[dict] = []
     json_rows: list[dict] = []
@@ -231,7 +232,7 @@ def resolve_paths(patterns: Iterable[Path]) -> list[Path] | None:
     return paths
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     paths = resolve_paths(args.files)
     if paths is None:

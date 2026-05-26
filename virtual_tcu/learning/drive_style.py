@@ -2,6 +2,7 @@ import math
 
 from virtual_tcu.telemetry.model import Telemetry
 
+
 class DriveStyleTracker:
     """Continuous 0→1 sport-index for Dynamic mode (Audi Tiptronic feel).
     Rises fast (τ=0.3s) on aggressive inputs, falls slow (τ=6s) — one
@@ -69,4 +70,3 @@ class DriveStyleTracker:
     @property
     def regime(self) -> str:
         return self._regime
-
