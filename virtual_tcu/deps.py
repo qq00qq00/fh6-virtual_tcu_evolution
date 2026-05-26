@@ -11,7 +11,7 @@ except ImportError:
     WINSOUND_OK = False
 
 try:
-    import keyboard
+    import keyboard  # noqa: F401
 
     KEYBOARD_OK = True
 except ImportError:
@@ -19,7 +19,7 @@ except ImportError:
     print("[ERROR] keyboard library missing. Run: pip install keyboard")
 
 try:
-    from aiohttp import web, WSMsgType
+    from aiohttp import WSMsgType, web
 
     AIOHTTP_OK = True
 except ImportError:

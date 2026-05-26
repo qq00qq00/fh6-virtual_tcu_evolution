@@ -4,10 +4,9 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import Deque, Optional
 
-from virtual_tcu.config.constants import Cfg
 from virtual_tcu import paths
+from virtual_tcu.config.constants import Cfg
 
 LOG_MAGIC = b"TCULOG01"
 
@@ -20,11 +19,11 @@ class TelemetryLogger:
         self._lock = threading.Lock()
         self._mode = "off"
         self._gz = None
-        self._path: Optional[Path] = None
+        self._path: Path | None = None
         self._start_time = 0.0
         self._packets_logged = 0
         self._bytes_written = 0
-        self._buffer: Deque[tuple] = deque(maxlen=60)
+        self._buffer: deque[tuple] = deque(maxlen=60)
         self._post_event_remaining = 0
 
     @property
@@ -70,7 +69,7 @@ class TelemetryLogger:
                 self._gz = None
                 return False
 
-    def stop(self) -> Optional[str]:
+    def stop(self) -> str | None:
         with self._lock:
             if self._gz is None:
                 return None
@@ -121,8 +120,7 @@ class TelemetryLogger:
             print(f"[Logger] write error: {e}")
             try:
                 self._gz.close()
-            except:
+            except Exception:
                 pass
             self._gz = None
             self._mode = "off"
-

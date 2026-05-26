@@ -1,21 +1,22 @@
 import gzip
 import struct
+from collections.abc import Iterator
 from pathlib import Path
-from typing import BinaryIO, Iterator, Tuple, Union
+from typing import BinaryIO
 
 from virtual_tcu.telemetry.logger import LOG_MAGIC
 
-Record = Tuple[int, bytes]
+Record = tuple[int, bytes]
 
 
-def open_replay(path: Union[str, Path]) -> BinaryIO:
+def open_replay(path: str | Path) -> BinaryIO:
     path = Path(path)
     if path.suffix == ".gz":
         return gzip.open(path, "rb")
     return path.open("rb")
 
 
-def iter_replay_records(path: Union[str, Path]) -> Iterator[Record]:
+def iter_replay_records(path: str | Path) -> Iterator[Record]:
     """Yield (relative_ms, raw_udp_packet) from a TCULOG01 replay file."""
     with open_replay(path) as f:
         magic = f.read(len(LOG_MAGIC))
@@ -31,7 +32,6 @@ def iter_replay_records(path: Union[str, Path]) -> Iterator[Record]:
             raw = f.read(packet_len)
             if len(raw) < packet_len:
                 raise ValueError(
-                    f"truncated packet at {rel_ms} ms "
-                    f"(expected {packet_len} bytes, got {len(raw)})"
+                    f"truncated packet at {rel_ms} ms (expected {packet_len} bytes, got {len(raw)})"
                 )
             yield rel_ms, raw

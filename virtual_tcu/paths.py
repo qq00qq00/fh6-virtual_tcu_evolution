@@ -14,7 +14,7 @@ def is_frozen() -> bool:
 def bundle_root() -> Path:
     """Read-only bundle root (_MEIPASS when frozen, repo root in dev)."""
     if is_frozen():
-        return Path(getattr(sys, "_MEIPASS"))
+        return Path(sys._MEIPASS)
     return Path(__file__).resolve().parent.parent
 
 
@@ -46,10 +46,7 @@ def user_data_dir() -> Path:
     if is_frozen():
         data = install_dir()
         if not _dir_is_writable(data):
-            print(
-                f"  [!] Install folder not writable ({data}), "
-                f"using {_appdata_dir()}"
-            )
+            print(f"  [!] Install folder not writable ({data}), using {_appdata_dir()}")
             data = _appdata_dir()
             data.mkdir(parents=True, exist_ok=True)
     else:

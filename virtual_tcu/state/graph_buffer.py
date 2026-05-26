@@ -1,14 +1,13 @@
 import threading
 import time
 from collections import deque
-from typing import Deque
 
 from virtual_tcu.telemetry.model import Telemetry
 
 
 class GraphBuffer:
     def __init__(self, max_points: int = 300):
-        self._buf: Deque[tuple] = deque(maxlen=max_points)
+        self._buf: deque[tuple] = deque(maxlen=max_points)
         self._lock = threading.Lock()
 
     def push(self, td: Telemetry):
@@ -27,4 +26,3 @@ class GraphBuffer:
     def snapshot(self) -> list:
         with self._lock:
             return list(self._buf)
-

@@ -61,9 +61,7 @@ class Telemetry:
 
     @property
     def rpm_pct(self) -> float:
-        return (
-            self.current_rpm / self.engine_max_rpm if self.engine_max_rpm > 0 else 0.0
-        )
+        return self.current_rpm / self.engine_max_rpm if self.engine_max_rpm > 0 else 0.0
 
     @property
     def throttle(self) -> float:
@@ -76,4 +74,3 @@ class Telemetry:
     @property
     def drivetrain_name(self) -> str:
         return {0: "FWD", 1: "RWD", 2: "AWD"}.get(self.drivetrain, "—")
-

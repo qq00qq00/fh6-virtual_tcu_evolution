@@ -73,6 +73,30 @@ pip install -r requirements.txt
 - `aiohttp` — optional, enables the web UI (runs headless without it)
 - `pypresence` — optional, Discord Rich Presence integration
 
+Dev dependencies (Ruff lint/format) are managed via `pyproject.toml` `[dependency-groups.dev]` or `requirements-dev.txt`. Install with `uv sync --group dev` or `pip install -r requirements-dev.txt`.
+
+## Lint / Format
+
+From the repo root (pnpm monorepo):
+
+```bash
+pnpm install              # Node deps + workspace packages
+pnpm lint                 # ESLint (TS/Vue) + Ruff (Python)
+pnpm lint:py              # Ruff check only
+pnpm format               # Prettier + Ruff format
+pnpm format:py            # Ruff format only
+pnpm typecheck            # vue-tsc across workspace packages
+```
+
+Python-only (without pnpm):
+
+```bash
+ruff check virtual_tcu virtual_tcu.py
+ruff format virtual_tcu virtual_tcu.py
+```
+
+Ruff config lives in `pyproject.toml` (`line-length = 100`, `target-version = "py312"`, rules `E`/`F`/`I`/`UP`/`B`). Ruff is dev-only — it is not bundled into PyInstaller builds.
+
 ## Architecture
 
 Two top-level pieces:

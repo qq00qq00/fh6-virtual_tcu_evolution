@@ -1,6 +1,7 @@
 import threading
 import time
 
+
 class Watchdog:
     def __init__(self):
         self._last_heartbeat = time.time()
@@ -17,4 +18,3 @@ class Watchdog:
             if not self._has_ever_beat:
                 return False
             return (time.time() - self._last_heartbeat) > 5.0
-

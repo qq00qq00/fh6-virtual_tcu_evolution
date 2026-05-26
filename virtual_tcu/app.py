@@ -3,12 +3,13 @@ import asyncio
 import sys
 import time
 import webbrowser
+
 import keyboard
 
 from virtual_tcu import paths
 from virtual_tcu.config.constants import Cfg
-from virtual_tcu.config.web_bind import format_startup_urls, web_urls
 from virtual_tcu.config.store import ConfigStore
+from virtual_tcu.config.web_bind import format_startup_urls, web_urls
 from virtual_tcu.deps import AIOHTTP_OK
 from virtual_tcu.input.keyboard import VirtualKeyboard
 from virtual_tcu.logic.tcu import TCULogic
@@ -56,7 +57,7 @@ async def main_async(receiver, tcu, config, logger, *, backend_only: bool = Fals
         if should_open:
             try:
                 webbrowser.open(url)
-            except:
+            except Exception:
                 pass
 
         try:
@@ -84,6 +85,7 @@ def setup_hotkeys(tcu: TCULogic, config: ConfigStore, logger: TelemetryLogger):
                 fn()
             except Exception as e:
                 print(f"  [hotkey {name}] {e}")
+
         return wrapped
 
     def toggle_log():
@@ -107,6 +109,7 @@ def setup_hotkeys(tcu: TCULogic, config: ConfigStore, logger: TelemetryLogger):
 
 def banner():
     from virtual_tcu import __version__
+
     print("=" * 66)
     print(f"  VIRTUAL TCU v{__version__}  —  FH6")
     print("=" * 66)
@@ -137,18 +140,17 @@ def main():
     receiver = TelemetryReceiver(logger, on_packet=tcu.process, config=config)
     if not receiver.start():
         from virtual_tcu.bootstrap import report_fatal
+
         report_fatal(
             f"UDP port {config.get('udp_port', Cfg.UDP_PORT)} bind failed. {receiver.error_msg}"
         )
 
     # AIOHTTP Windows Event Loop Exception Fix
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     try:
-        asyncio.run(
-            main_async(receiver, tcu, config, logger, backend_only=args.backend_only)
-        )
+        asyncio.run(main_async(receiver, tcu, config, logger, backend_only=args.backend_only))
     except KeyboardInterrupt:
         print("\n  Shutting down...")
     finally:
@@ -156,6 +158,7 @@ def main():
         receiver.stop()
         kb.shutdown()
         tcu.shutdown()
+
 
 if __name__ == "__main__":
     main()

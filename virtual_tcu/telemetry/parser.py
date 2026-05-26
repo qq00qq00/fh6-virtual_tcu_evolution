@@ -1,32 +1,27 @@
 import struct
-from typing import Optional
 
 from virtual_tcu.telemetry.model import FH6_PACKET_SIZE, Telemetry
 
 
-def parse_fh6_packet(data: bytes) -> Optional[Telemetry]:
+def parse_fh6_packet(data: bytes) -> Telemetry | None:
     # Production fail-safe length verification
     if len(data) < 324 or len(data) < FH6_PACKET_SIZE:
         return None
-        
+
     try:
-        is_race, session_ts, max_rpm, idle_rpm, cur_rpm = struct.unpack_from(
-            "<iIfff", data, 0
-        )
+        is_race, session_ts, max_rpm, idle_rpm, cur_rpm = struct.unpack_from("<iIfff", data, 0)
         ax, ay, az = struct.unpack_from("<fff", data, 20)
         vx, vy, vz = struct.unpack_from("<fff", data, 32)
         avx, avy, avz = struct.unpack_from("<fff", data, 44)
         speed, power, torque = struct.unpack_from("<fff", data, 256)
         boost = struct.unpack_from("<f", data, 284)[0]
-        
+
         accel = data[315]
         brake = data[316]
         clutch = data[317]
         gear = data[319]
-        
-        car_ord, car_cls, pi, drivetrain, ncyl = struct.unpack_from(
-            "<iiiii", data, 212
-        )
+
+        car_ord, car_cls, pi, drivetrain, ncyl = struct.unpack_from("<iiiii", data, 212)
         slip_fl, slip_fr, slip_rl, slip_rr = struct.unpack_from("<ffff", data, 136)
     except (struct.error, IndexError):
         return None

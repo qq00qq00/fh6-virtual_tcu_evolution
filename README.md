@@ -223,6 +223,20 @@ npm run dev
 
 Open **http://127.0.0.1:5173** (proxies WebSocket to port 8765). See [web-ui/README.md](web-ui/README.md).
 
+### Code quality (monorepo)
+
+The repo uses a pnpm workspace at the root. After `pnpm install`:
+
+| Command | Purpose |
+|---------|---------|
+| `pnpm lint` | ESLint (TS/Vue) + Ruff (Python) |
+| `pnpm lint:py` | Ruff check on `virtual_tcu/` |
+| `pnpm format` | Prettier + Ruff format |
+| `pnpm format:py` | Ruff format on `virtual_tcu/` |
+| `pnpm typecheck` | `vue-tsc` across workspace packages |
+
+Install Python dev tools (Ruff) with `uv sync --group dev` or `pip install -r requirements-dev.txt`. Run `pnpm lint:py` before submitting Python changes.
+
 ### Build a Release locally (maintainers)
 
 ```bash

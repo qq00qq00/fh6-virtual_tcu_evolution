@@ -9,7 +9,7 @@
 ## 总体进度
 
 - [x] Phase 0 — 基础设施 ✅ 2026-05-25
-- [ ] Phase 0.5 — Python Ruff（lint + format）
+- [x] Phase 0.5 — Python Ruff（lint + format）✅ 2026-05-26
 - [x] Phase 1 — 抽取 `@virtual-tcu/shared` ✅ 2026-05-25
 - [x] Phase 2 — 抽取 `@virtual-tcu/ui` + Naive UI 统一 ✅ 代码 2026-05-26 / ⏳ 运行时验收待定
 - [ ] Phase 3 — 工具链升级（**Vite 7 统一** / Electron 42 / electron-vite 5）
@@ -25,8 +25,8 @@
 | **Phase 0** | ✅ 已完成 — pnpm workspace、根级 ESLint/Prettier/TS、双包 typecheck 通过 |
 | **Phase 1** | ✅ 已完成 — `@virtual-tcu/shared` 抽取完毕，双包 typecheck + lint 通过 |
 | **Phase 2** | ✅ 代码完成 / ⏳ 验收待定 — `@virtual-tcu/ui` 已创建，settings/layout/dashboard 组件已迁入；web-ui 侧 composable 已 re-export，**.vue 仍为并行副本**（仅 import 路径不同）；旧 `web-ui/styles/ui.css` 已删，样式迁至 `packages/ui/styles/components.css` |
-| **Phase 0.5 / 3–5** | ⬜ 未开始 |
-| **Python lint/format** | ⬜ 无配置（`.gitignore` 已有 `.ruff_cache/` 占位，待 Phase 0.5 落地） |
+| **Phase 0.5** | ✅ 已完成 — Ruff lint+format 就绪，零 error，22 files reformatted |
+| **Python lint/format** | ✅ Ruff 0.15.14（`ruff check` + `ruff format`）；配 `lint:py` / `format:py` 脚本 |
 | **workspace 结构** | `packages/shared` + `packages/ui` + `web-ui` + `electron`（原位，尚未 rename 到 `apps/`） |
 | **pnpm** | 10.33.0（`packageManager` 已锁定；原方案 11.3 暂未升级） |
 | **web-ui Vite** | ^7.3.2（已是目标版本） |
@@ -35,7 +35,7 @@
 | **Electron** | ^33.2.1（待 Phase 3 升到 42.2.0） |
 | **已知 peer 警告** | `@vitejs/plugin-vue@5` 不支持 Vite 7 → Phase 3 升 plugin-vue 6 消除 |
 
-**下一步建议**：Phase 2 运行时验收（`pnpm dev:dashboard` + Windows electron settings）→ `pnpm lint --fix` 清 packages/ui 排序 → Phase 0.5（Ruff）或 Phase 3（工具链升级）
+**下一步建议**：Phase 2 运行时验收（`pnpm dev:dashboard` + Windows electron settings）→ 合并 PR #25（Phase 0.5）→ `pnpm lint --fix` 清 packages/ui 排序 → Phase 3（工具链升级）
 
 ---
 
@@ -303,23 +303,31 @@ dashboard 的 `App.vue` 复用同一套 layout 组件，通过 props 控制 `int
 
 > **策略**：用 Ruff 统一 Python lint + format，与前端 ESLint + Prettier 对齐。不引入 Black（Ruff format 已覆盖）。独立小步，可与 Phase 1 / 3 并行。
 
-- [ ] 根目录添加 `pyproject.toml`（`[tool.ruff]` / `[tool.ruff.lint]` / `[tool.ruff.format]`）
-- [ ] 添加 `requirements-dev.txt`（`ruff>=0.9`）或文档说明 `pip install ruff` / `uv tool install ruff`
-- [ ] 根 `package.json` 添加脚本：
-  - [ ] `lint:py` → `ruff check virtual_tcu virtual_tcu.py`
-  - [ ] `format:py` → `ruff format virtual_tcu virtual_tcu.py`
-  - [ ] `lint` 扩展为同时跑 ESLint + Ruff（或 `lint:all`）
-- [ ] 配置 Ruff：`line-length = 100`、`target-version = "py312"`
-- [ ] 配置 lint rules：`E`、`F`、`I`（import）、`UP`（pyupgrade）、`B`（bugbear）为基础集
-- [ ] 在独立分支 `chore/python-ruff` 执行首次 `ruff format` + 修复 `ruff check` 报错
-- [ ] 更新 `CLAUDE.md` / README 开发指引（Python 贡献需跑 `pnpm lint:py`）
-- [ ] （可选）VS Code 推荐扩展：`charliermarsh.ruff`
+- [x] 根目录添加 `pyproject.toml`（`[tool.ruff]` / `[tool.ruff.lint]` / `[tool.ruff.format]`）
+- [x] 添加 `requirements-dev.txt`（`ruff>=0.9`）或文档说明 `pip install ruff` / `uv tool install ruff`
+- [x] 根 `package.json` 添加脚本：
+  - [x] `lint:py` → `ruff check virtual_tcu virtual_tcu.py`
+  - [x] `format:py` → `ruff format virtual_tcu virtual_tcu.py`
+  - [x] `lint` 扩展为同时跑 ESLint + Ruff（或 `lint:all`）
+- [x] 配置 Ruff：`line-length = 100`、`target-version = "py312"`
+- [x] 配置 lint rules：`E`、`F`、`I`（import）、`UP`（pyupgrade）、`B`（bugbear）为基础集
+- [x] 在独立分支 `chore/python-ruff` 执行首次 `ruff format` + 修复 `ruff check` 报错
+- [x] 更新 `CLAUDE.md` / README 开发指引（Python 贡献需跑 `pnpm lint:py`）
+- [x] （可选）VS Code 推荐扩展：`charliermarsh.ruff`
 
 **验收**
 
-- [ ] `ruff check virtual_tcu virtual_tcu.py` 零 error
-- [ ] `ruff format --check` 通过（格式已统一）
-- [ ] 不影响 PyInstaller 打包与运行时行为
+- [x] `ruff check virtual_tcu virtual_tcu.py` 零 error
+- [x] `ruff format --check` 通过（格式已统一，44 files）
+- [x] 不影响 PyInstaller 打包与运行时行为（Ruff 仅 dev 依赖，未打入 `requirements.txt`）
+
+**实施记录与注意事项**
+
+1. **分支与 PR**：`chore/python-ruff`（[PR #25](https://github.com/Forza-Love/fh6-virtual_tcu/pull/25)），首次 format 22 文件 + 121 处自动修复；手动修复 bare except、unused import、B023 closure vars。
+2. **uv 迁移**（commit `d8c687f`）：依赖迁入 `pyproject.toml` `[project.dependencies]` + `[dependency-groups.dev]`；新增 `.python-version`（3.12）与 `uv.lock`；`requirements.txt` / `requirements-dev.txt` 保留为兼容 shim。
+3. **Ruff 版本**：0.15.14（`ruff>=0.9.0`）。
+4. **文档**：`CLAUDE.md`、`README.md`、`README.zh-CN.md` 已补充 `pnpm lint:py` / `format:py` 指引；`.vscode/extensions.json` 推荐 `charliermarsh.ruff`。
+5. **合并状态**：代码与文档在 `chore/python-ruff` 分支完成；合并到 `main` 后 Phase 0.5 正式落地。
 
 **注意事项**
 
@@ -655,7 +663,7 @@ electron-vite 2 → 5 主要变更：
 | Electron 二进制下载慢 | `pnpm i` 看似卡住 | `.npmrc` 配置 `electron_mirror` | ✅ 已配置 |
 | Naive UI 体积 | dashboard 首屏变大 | 按需 import；settings 面板 lazy load | ⬜ |
 | UI 统一工作量大 | 延期 | 可分批：先 settings，再 dashboard panels | ✅ Phase 2 代码完成；web-ui 双份副本待 Phase 5 收敛 |
-| Ruff 首次 format 大 diff | review 困难、与功能 PR 冲突 | 独立 `chore/python-ruff` 分支/PR | ⬜ |
+| Ruff 首次 format 大 diff | review 困难、与功能 PR 冲突 | 独立 `chore/python-ruff` 分支/PR | ✅ PR #25 |
 
 ---
 
@@ -664,7 +672,7 @@ electron-vite 2 → 5 主要变更：
 ```
 Phase 0  pnpm monorepo 脚手架 ✅
    ↓
-Phase 0.5  Python Ruff（独立小步，可与下面并行）
+Phase 0.5  Python Ruff（独立小步，可与下面并行）✅
    ↓
 Phase 1  抽 @virtual-tcu/shared（零 UI 变更，风险最低）
    ↓

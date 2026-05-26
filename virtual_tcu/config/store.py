@@ -1,15 +1,15 @@
 import json
 from pathlib import Path
-from typing import Dict, Optional, Union
 
+from virtual_tcu import paths
 from virtual_tcu.config.constants import DEFAULTS
 from virtual_tcu.config.web_bind import valid_bind_host
-from virtual_tcu import paths
+
 
 class ConfigStore:
-    def __init__(self, path: Optional[Union[str, Path]] = None):
+    def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path is not None else paths.config_file()
-        self.data: Dict[str, float | bool] = dict(DEFAULTS)
+        self.data: dict[str, float | bool] = dict(DEFAULTS)
         self.load()
 
     def load(self):
@@ -56,7 +56,7 @@ class ConfigStore:
                 new_keys_added = True
             if new_keys_added:
                 self.save()
-                print(f"[Config] new settings added — file updated")
+                print("[Config] new settings added — file updated")
         except Exception as e:
             print(f"[Config] load failed, using defaults: {e}")
             try:
@@ -134,4 +134,3 @@ class ConfigStore:
             self.save()
         except (TypeError, ValueError) as e:
             print(f"[Config] set({key!r}, {value!r}) failed: {e}")
-

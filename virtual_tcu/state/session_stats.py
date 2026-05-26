@@ -1,6 +1,5 @@
 import threading
 import time
-from typing import Set
 
 from virtual_tcu.telemetry.model import Telemetry
 
@@ -21,7 +20,7 @@ class SessionStats:
         self.peak_power_kw = 0.0
         self.throttle_avg_sum = 0.0
         self.throttle_avg_n = 0
-        self.cars_driven: Set[int] = set()
+        self.cars_driven: set[int] = set()
         self._lock = threading.Lock()
 
     def record_shift(self, action: str, reason: str = ""):
@@ -59,11 +58,7 @@ class SessionStats:
     def snapshot(self) -> dict:
         with self._lock:
             duration = time.time() - self.start_time
-            avg_thr = (
-                self.throttle_avg_sum / self.throttle_avg_n
-                if self.throttle_avg_n
-                else 0.0
-            )
+            avg_thr = self.throttle_avg_sum / self.throttle_avg_n if self.throttle_avg_n else 0.0
             return {
                 "duration_s": duration,
                 "upshifts": self.upshifts,
@@ -80,4 +75,3 @@ class SessionStats:
                 "avg_throttle": avg_thr * 100,
                 "cars_driven": len(self.cars_driven),
             }
-

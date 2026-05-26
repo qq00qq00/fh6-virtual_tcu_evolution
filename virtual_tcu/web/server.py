@@ -2,13 +2,17 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from typing import Optional, Set
 
 from virtual_tcu import paths
 from virtual_tcu.config.constants import DEFAULTS
-from virtual_tcu.config.web_bind import bind_error_hint, format_startup_urls, network_status, resolve_bind, web_urls
 from virtual_tcu.config.store import ConfigStore
-from virtual_tcu.deps import AIOHTTP_OK, WSMsgType, web
+from virtual_tcu.config.web_bind import (
+    bind_error_hint,
+    format_startup_urls,
+    network_status,
+    resolve_bind,
+)
+from virtual_tcu.deps import WSMsgType, web
 from virtual_tcu.logic.tcu import TCULogic
 from virtual_tcu.telemetry.logger import TelemetryLogger
 from virtual_tcu.telemetry.receiver import TelemetryReceiver
@@ -27,13 +31,16 @@ _NO_UI_HTML = """<!DOCTYPE html>
 </html>
 """
 
-def _dist_index() -> Optional[Path]:
+
+def _dist_index() -> Path | None:
     p = paths.web_dist_dir() / "index.html"
     return p if p.is_file() else None
 
-def _dist_assets_dir() -> Optional[Path]:
+
+def _dist_assets_dir() -> Path | None:
     p = paths.web_dist_dir() / "assets"
     return p if p.is_dir() else None
+
 
 class WebServer:
     def __init__(
@@ -47,7 +54,7 @@ class WebServer:
         self._tcu = tcu
         self._config = config
         self._logger = logger
-        self._clients: Set = set()
+        self._clients: set = set()
         self._ui_available = _dist_index() is not None
         self._runner = None
         self._site = None
@@ -140,9 +147,7 @@ class WebServer:
                 {"type": "log_status", "data": self._logger.status, "last_file": path}
             )
         elif t == "request_graph":
-            await ws.send_json(
-                {"type": "graph_data", "data": self._tcu.snapshot_graph()}
-            )
+            await ws.send_json({"type": "graph_data", "data": self._tcu.snapshot_graph()})
         elif t == "export_profile":
             export = {
                 "version": "v12",
@@ -174,9 +179,7 @@ class WebServer:
                         }
                     )
             except Exception as e:
-                await ws.send_json(
-                    {"type": "profile_imported", "ok": False, "error": str(e)}
-                )
+                await ws.send_json({"type": "profile_imported", "ok": False, "error": str(e)})
 
     async def _apply_network(self, msg: dict):
         host = msg.get("web_host", "")
@@ -270,14 +273,14 @@ class WebServer:
         while True:
             await asyncio.sleep(tcu_interval)
             tick += 1
-            
+
             if tick % broadcast_every_n != 0:
                 continue
             if not self._clients:
                 continue
-                
+
             td = self._recv.latest()
-            
+
             payload_tel = {"type": "telemetry", "data": self._tcu.snapshot(td)}
             payload_st = {
                 "type": "state",
@@ -288,15 +291,15 @@ class WebServer:
                     "packets_total": self._recv.packets_total,
                 },
             }
-            
+
             dead = set()
 
-            async def _send_safe(client_ws):
+            async def _send_safe(client_ws, _pt=payload_tel, _ps=payload_st, _d=dead):
                 try:
-                    await client_ws.send_json(payload_tel)
-                    await client_ws.send_json(payload_st)
+                    await client_ws.send_json(_pt)
+                    await client_ws.send_json(_ps)
                 except Exception:
-                    dead.add(client_ws)
+                    _d.add(client_ws)
 
             # Eşzamanlı yayın (Race-free & Lock-free broadcast)
             tasks = [_send_safe(client) for client in self._clients]
@@ -336,9 +339,7 @@ class WebServer:
         try:
             self._bind_host, self._bind_port = await self._bind_with_fallback(host, port)
             urls = format_startup_urls(self._config)
-            print(f"  [OK] Web UI rebound at {urls[0]}" + (
-                f", {urls[1]}" if len(urls) > 1 else ""
-            ))
+            print(f"  [OK] Web UI rebound at {urls[0]}" + (f", {urls[1]}" if len(urls) > 1 else ""))
             return True
         except OSError as e:
             print(f"  [!] Web UI rebind failed on {host}:{port} — {bind_error_hint(e)}")
