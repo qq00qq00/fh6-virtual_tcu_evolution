@@ -230,6 +230,20 @@ npm run dev
 
 浏览器打开 **http://127.0.0.1:5173**（WebSocket 代理到 8765）。详见 [web-ui/README.md](web-ui/README.md)。
 
+### 代码质量（monorepo）
+
+仓库根目录为 pnpm workspace。执行 `pnpm install` 后可用：
+
+| 命令 | 作用 |
+|------|------|
+| `pnpm lint` | ESLint（TS/Vue）+ Ruff（Python） |
+| `pnpm lint:py` | 对 `virtual_tcu/` 运行 Ruff check |
+| `pnpm format` | Prettier + Ruff format |
+| `pnpm format:py` | 对 `virtual_tcu/` 运行 Ruff format |
+| `pnpm typecheck` | 各 workspace 包运行 `vue-tsc` |
+
+Python 开发依赖（Ruff）可通过 `uv sync --group dev` 或 `pip install -r requirements-dev.txt` 安装。提交 Python 改动前请运行 `pnpm lint:py`。
+
 ### 本地打包 Release（维护者）
 
 ```bash
