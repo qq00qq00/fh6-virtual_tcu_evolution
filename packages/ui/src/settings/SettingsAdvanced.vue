@@ -119,11 +119,8 @@
           v-if="networkDirty"
           type="warning"
           size="small"
-          style="margin-left: 8px"
-          @click="
-            applyNetworkSettings()
-            restartBackend()
-          "
+          style="margin-left: 8px" 
+          @click="applyNetworkSettings(); restartBackend()"
         >
           {{ t('extras.saveAndRestart') }}
         </NButton>
