@@ -1,11 +1,11 @@
 import json
 from pathlib import Path
-from typing import Optional, Union
 
 from virtual_tcu import paths
 
+
 class ProfileStore:
-    def __init__(self, path: Optional[Union[str, Path]] = None):
+    def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path is not None else paths.profiles_file()
         self.data: dict = {}
         self.load()
@@ -24,7 +24,7 @@ class ProfileStore:
         except Exception as e:
             print(f"[Profiles] save failed: {e}")
 
-    def get(self, car_ordinal: int) -> Optional[dict]:
+    def get(self, car_ordinal: int) -> dict | None:
         return self.data.get(str(car_ordinal))
 
     def set(self, car_ordinal: int, profile: dict):

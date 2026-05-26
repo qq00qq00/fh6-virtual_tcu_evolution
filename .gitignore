@@ -64,5 +64,7 @@ ehthumbs.db
 .env.*
 !.env.example
 
-# you can continue to push another 
+node_modules
 
+.claude/*.local.json
+.reasonix/

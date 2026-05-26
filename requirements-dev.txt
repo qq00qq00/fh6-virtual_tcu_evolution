@@ -1,0 +1,2 @@
+# uv-managed via pyproject.toml [dependency-groups.dev]
+ruff>=0.9.0

@@ -1,5 +1,6 @@
 import time
 from concurrent.futures import ThreadPoolExecutor
+
 import keyboard
 
 from virtual_tcu.config.constants import Cfg
@@ -46,7 +47,8 @@ class VirtualKeyboard:
             self._press_release(self.key_down)
             time.sleep(0.06)
             self._press_release(self.key_down)
+
         self._executor.submit(_double)
-        
+
     def shutdown(self):
         self._executor.shutdown(wait=False)

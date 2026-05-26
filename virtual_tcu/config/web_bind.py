@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import socket
-from typing import Dict, List, Optional, Tuple
 
 from virtual_tcu.config.constants import Cfg
 
@@ -21,7 +20,7 @@ def valid_bind_host(host: str) -> bool:
         return False
 
 
-def resolve_bind(config) -> Tuple[str, int]:
+def resolve_bind(config) -> tuple[str, int]:
     host = str(config.get("web_host", Cfg.WEB_HOST)).strip()
     if not valid_bind_host(host):
         host = Cfg.WEB_HOST
@@ -34,7 +33,7 @@ def client_host(bind_host: str) -> str:
     return "127.0.0.1" if bind_host in ("0.0.0.0", "::") else bind_host
 
 
-def local_lan_ip() -> Optional[str]:
+def local_lan_ip() -> str | None:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("8.8.8.8", 80))
@@ -43,10 +42,10 @@ def local_lan_ip() -> Optional[str]:
         return None
 
 
-def web_urls(config) -> Dict[str, object]:
+def web_urls(config) -> dict[str, object]:
     bind_host, port = resolve_bind(config)
     local = f"http://127.0.0.1:{port}"
-    urls: Dict[str, object] = {
+    urls: dict[str, object] = {
         "bind_host": bind_host,
         "port": port,
         "local": local,
@@ -60,7 +59,7 @@ def web_urls(config) -> Dict[str, object]:
     return urls
 
 
-def format_startup_urls(config) -> List[str]:
+def format_startup_urls(config) -> list[str]:
     info = web_urls(config)
     port = info["port"]
     bind_host = info["bind_host"]
@@ -73,7 +72,7 @@ def format_startup_urls(config) -> List[str]:
     return lines
 
 
-def network_status(config) -> Dict[str, object]:
+def network_status(config) -> dict[str, object]:
     urls = web_urls(config)
     urls["udp_port"] = int(config.get("udp_port", Cfg.UDP_PORT))
     return urls

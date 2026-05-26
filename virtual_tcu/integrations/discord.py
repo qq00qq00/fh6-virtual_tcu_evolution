@@ -1,5 +1,6 @@
 import time
 
+
 class DiscordRPC:
     DISCORD_CLIENT_ID = ""
 
@@ -39,6 +40,5 @@ class DiscordRPC:
         if self._rpc:
             try:
                 self._rpc.close()
-            except:
+            except Exception:
                 pass
-

@@ -1,8 +1,7 @@
-import socket
 import select
+import socket
 import threading
 import time
-from typing import Optional
 
 from virtual_tcu.config.constants import Cfg
 from virtual_tcu.telemetry.logger import TelemetryLogger
@@ -12,11 +11,11 @@ from virtual_tcu.telemetry.parser import parse_fh6_packet
 
 class TelemetryReceiver:
     def __init__(self, logger: TelemetryLogger, on_packet=None, config=None):
-        self._sock: Optional[socket.socket] = None
+        self._sock: socket.socket | None = None
         self._running = threading.Event()
-        self._thread: Optional[threading.Thread] = None
-        self._latest: Optional[Telemetry] = None
-        self._latest_raw: Optional[bytes] = None
+        self._thread: threading.Thread | None = None
+        self._latest: Telemetry | None = None
+        self._latest_raw: bytes | None = None
         self._lock = threading.Lock()
         self._logger = logger
         self.on_packet = on_packet
@@ -108,11 +107,11 @@ class TelemetryReceiver:
                 print(f"[UDP] Error in receiver loop: {e}")
                 time.sleep(0.01)
 
-    def latest(self) -> Optional[Telemetry]:
+    def latest(self) -> Telemetry | None:
         with self._lock:
             return self._latest
 
-    def latest_raw(self) -> Optional[bytes]:
+    def latest_raw(self) -> bytes | None:
         with self._lock:
             return self._latest_raw
 

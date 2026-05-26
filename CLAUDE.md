@@ -23,17 +23,17 @@ Run the installer as Administrator if hotkeys / key injection don't fire (the `k
 ### From source — Electron shell + Python backend
 
 ```bash
-# 1. Build the Vue dashboard (one-time, also rebuild after web-ui changes)
-cd web-ui && npm install && npm run build
+# 1. Build the Vue dashboard (one-time, also rebuild after dashboard changes)
+cd apps/dashboard && pnpm install && pnpm build
 
 # 2. Install Python deps
 pip install -r requirements.txt
 
 # 3. Install Electron deps and launch
-cd electron && npm install && npm run dev
+cd apps/electron && pnpm install && pnpm dev
 ```
 
-`electron/src/main/index.ts` spawns `python -m virtual_tcu --backend-only` (or the PyInstaller exe at `dist/VirtualTCU/VirtualTCU.exe` if it exists), waits for the `[backend-ready]` marker on stdout, then opens the main window pointing at `http://127.0.0.1:8765`.
+`apps/electron/src/main/index.ts` spawns `python -m virtual_tcu --backend-only` (or the PyInstaller exe at `dist/VirtualTCU/VirtualTCU.exe` if it exists), waits for the `[backend-ready]` marker on stdout, then opens the main window pointing at `http://127.0.0.1:8765`.
 
 ### From source — Python only (no Electron)
 
@@ -49,17 +49,17 @@ Opens the dashboard in the system browser. No floating HUD, no auto-update.
 
 ```bash
 # 1. Vue dashboard → virtual_tcu/web/dist/
-cd web-ui && npm ci && npm run build && cd ..
+cd apps/dashboard && pnpm install && pnpm build && cd ../..
 
 # 2. Python backend → dist/VirtualTCU/VirtualTCU.exe (PyInstaller onedir)
 pip install -r requirements.txt pyinstaller
 pyinstaller virtual_tcu.spec --noconfirm
 
-# 3. Electron shell → electron/release/VirtualTCU-<version>-win64.exe
-cd electron && npm ci && npm run package
+# 3. Electron shell → apps/electron/release/VirtualTCU-<version>-win64.exe
+cd apps/electron && pnpm install && pnpm package
 ```
 
-`electron-builder.yml` copies `dist/VirtualTCU/` into the installer as `resources/backend/`, so the final `.exe` is fully self-contained.
+`electron-builder.yml` copies `../../dist/VirtualTCU/` into the installer as `resources/backend/`, so the final `.exe` is fully self-contained.
 
 Push a tag `v*` (e.g. `v12.0.1`) to trigger `.github/workflows/release.yml`, which runs all three steps and publishes both the Electron installer and the backend-only zip.
 
@@ -73,11 +73,35 @@ pip install -r requirements.txt
 - `aiohttp` — optional, enables the web UI (runs headless without it)
 - `pypresence` — optional, Discord Rich Presence integration
 
+Dev dependencies (Ruff lint/format) are managed via `pyproject.toml` `[dependency-groups.dev]` or `requirements-dev.txt`. Install with `uv sync --group dev` or `pip install -r requirements-dev.txt`.
+
+## Lint / Format
+
+From the repo root (pnpm monorepo):
+
+```bash
+pnpm install              # Node deps + workspace packages
+pnpm lint                 # ESLint (TS/Vue) + Ruff (Python)
+pnpm lint:py              # Ruff check only
+pnpm format               # Prettier + Ruff format
+pnpm format:py            # Ruff format only
+pnpm typecheck            # vue-tsc across workspace packages
+```
+
+Python-only (without pnpm):
+
+```bash
+ruff check virtual_tcu virtual_tcu.py
+ruff format virtual_tcu virtual_tcu.py
+```
+
+Ruff config lives in `pyproject.toml` (`line-length = 100`, `target-version = "py312"`, rules `E`/`F`/`I`/`UP`/`B`). Ruff is dev-only — it is not bundled into PyInstaller builds.
+
 ## Architecture
 
 Two top-level pieces:
 
-1. **Electron shell** (`electron/`) — main process, preload scripts, frameless HUD renderer, auto-updater. Spawns the Python backend as a child process and renders the existing Vue dashboard in a `BrowserWindow`.
+1. **Electron shell** (`apps/electron/`) — main process, preload scripts, frameless HUD renderer, auto-updater. Spawns the Python backend as a child process and renders the existing Vue dashboard in a `BrowserWindow`.
 2. **Python backend** (`virtual_tcu/`) — telemetry receiver, shift logic, web/WebSocket server. Runs standalone (browser UI) or under Electron (`--backend-only`).
 
 ```
@@ -96,9 +120,9 @@ virtual_tcu/             # Python backend
   web/                   # WebServer + bundled dist/ assets
   integrations/          # Discord RPC
 
-electron/                # Electron shell
+apps/electron/           # Electron shell
   electron.vite.config.ts
-  electron-builder.yml   # bundles ../dist/VirtualTCU as resources/backend
+  electron-builder.yml   # bundles ../../dist/VirtualTCU as resources/backend
   src/
     main/index.ts        # spawn backend, lifecycle, tray, IPC, autoUpdater
     preload/main.ts      # exposes window.tcu API to the dashboard
@@ -108,7 +132,7 @@ electron/                # Electron shell
       main.ts
       HudApp.vue
 
-web-ui/                  # Vue 3 dashboard (loaded by main BrowserWindow at :8765)
+apps/dashboard/          # Vue 3 dashboard (loaded by main BrowserWindow at :8765)
 ```
 
 ### Process layout (release build)
@@ -155,16 +179,16 @@ Paths are resolved in `virtual_tcu/paths.py`:
 
 ### Web UI
 
-Vue 3 + TypeScript app in `web-ui/` using Tailwind CSS 4, vue-i18n (en + zh-CN). Path alias `@` → `web-ui/src/`.
+Vue 3 + TypeScript app in `apps/dashboard/` using Tailwind CSS 4, vue-i18n (en + zh-CN). Path alias `@` → `apps/dashboard/src/`.
 
 ```bash
-cd web-ui
-npm install
-npm run dev          # port 5173, proxies /ws → localhost:8765
-npm run build        # vue-tsc --noEmit + vite build → virtual_tcu/web/dist/
-npm run lint         # eslint (flat config, @antfu/eslint-config)
-npm run format       # prettier + prettier-plugin-tailwindcss
-npm run typecheck    # vue-tsc --noEmit
+cd apps/dashboard
+pnpm install
+pnpm dev          # port 5173, proxies /ws → localhost:8765
+pnpm build        # vue-tsc --noEmit + vite build → virtual_tcu/web/dist/
+pnpm lint         # eslint (flat config, @antfu/eslint-config)
+pnpm format       # prettier + prettier-plugin-tailwindcss
+pnpm typecheck    # vue-tsc --noEmit
 ```
 
 If `dist/` is absent, `/` returns HTTP 503 with build/download instructions.

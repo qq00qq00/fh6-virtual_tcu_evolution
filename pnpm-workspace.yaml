@@ -1,0 +1,9 @@
+packages:
+  - packages/shared
+  - packages/ui
+  - apps/dashboard
+  - apps/electron
+
+allowBuilds:
+  electron: true
+  esbuild: true

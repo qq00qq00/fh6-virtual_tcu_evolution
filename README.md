@@ -19,7 +19,7 @@ An external adaptive transmission controller for *Forza Horizon 6*. It reads rea
 | Play — tray app, HUD overlay & auto-update | [Download Electron installer](#download--use-electron-installer) |
 | Play — Python backend only, no Electron | [Download backend-only zip](#download--use-backend-only-zip) |
 | Develop or run from this repo | [Run from source](#run-from-source) |
-| Change the Vue UI | [web-ui/README.md](web-ui/README.md) |
+| Change the Vue UI | [apps/dashboard/README.md](apps/dashboard/README.md) |
 
 **Platform:** Windows 10 / 11 only. Run as **Administrator** (required for global key injection).
 
@@ -167,20 +167,20 @@ Open **Administrator** Command Prompt or PowerShell:
 cd path\to\virtualTCU
 pip install -r requirements.txt
 
-cd web-ui
-npm install
-npm run build
-cd ..
+cd apps/dashboard
+pnpm install
+pnpm build
+cd ../..
 ```
 
-`npm run build` writes the dashboard to `virtual_tcu/web/dist/`. Without it, the backend returns HTTP **503** instead of the UI.
+`pnpm build` writes the dashboard to `virtual_tcu/web/dist/`. Without it, the backend returns HTTP **503** instead of the UI.
 
 ### Option A — Electron shell (recommended)
 
 ```bash
-cd electron
-npm install
-npm run dev
+cd apps/electron
+pnpm install
+pnpm dev
 ```
 
 Or from the repo root: `packaging\dev-electron.bat`
@@ -219,24 +219,38 @@ python -m virtual_tcu
 Terminal 2 — Vite hot reload:
 
 ```bash
-cd web-ui
-npm run dev
+cd apps/dashboard
+pnpm dev
 ```
 
-Open **http://127.0.0.1:5173** (proxies WebSocket to port 8765). See [web-ui/README.md](web-ui/README.md).
+Open **http://127.0.0.1:5173** (proxies WebSocket to port 8765). See [apps/dashboard/README.md](apps/dashboard/README.md).
+
+### Code quality (monorepo)
+
+The repo uses a pnpm workspace at the root. After `pnpm install`:
+
+| Command | Purpose |
+|---------|---------|
+| `pnpm lint` | ESLint (TS/Vue) + Ruff (Python) |
+| `pnpm lint:py` | Ruff check on `virtual_tcu/` |
+| `pnpm format` | Prettier + Ruff format |
+| `pnpm format:py` | Ruff format on `virtual_tcu/` |
+| `pnpm typecheck` | `vue-tsc` across workspace packages |
+
+Install Python dev tools (Ruff) with `uv sync --group dev` or `pip install -r requirements-dev.txt`. Run `pnpm lint:py` before submitting Python changes.
 
 ### Build a Release locally (maintainers)
 
 ```bash
 # 1. Vue dashboard
-cd web-ui && npm ci && npm run build && cd ..
+cd apps/dashboard && pnpm install && pnpm build && cd ../..
 
 # 2. Python backend (PyInstaller onedir → dist/VirtualTCU/)
 pip install pyinstaller
 pyinstaller virtual_tcu.spec --noconfirm
 
-# 3. Electron installer (NSIS → electron/release/VirtualTCU-*-win64.exe)
-cd electron && npm ci && npm run package
+# 3. Electron installer (NSIS → apps/electron/release/VirtualTCU-*-win64.exe)
+cd apps/electron && pnpm install && pnpm package
 ```
 
 Push a `v*` tag to trigger CI, which produces both the Electron installer (`VirtualTCU-*-win64.exe` + `latest.yml`) and the backend-only zip (`VirtualTCU-Backend-*-win64.zip`).
@@ -341,8 +355,8 @@ Click **Apply** to save. The backend hot-reloads bindings; if the web port chang
 virtualTCU/
 ├── virtual_tcu.py          # entry → virtual_tcu.app
 ├── virtual_tcu/            # Python backend package
-├── web-ui/                 # Vue 3 + Tailwind v4 dashboard (served at :8765)
-├── electron/               # Electron shell (tray, Settings, HUD, auto-update)
+├── apps/dashboard/         # Vue 3 + Tailwind v4 + Naive UI dashboard (served at :8765)
+├── apps/electron/          # Electron shell (tray, Settings, HUD, auto-update)
 │   ├── src/main/index.ts   # spawns backend, lifecycle, tray, IPC, autoUpdater
 │   ├── src/settings-renderer/  # Settings window (Naive UI)
 │   ├── src/hud-renderer/   # frameless transparent HUD overlay

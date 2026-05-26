@@ -4,7 +4,9 @@
   // 将tailwindcss入口文件关联到tailwindcss语言服务
   "files.associations": {
     "app.css": "tailwindcss",
-    "ui.css": "tailwindcss"
+    "ui.css": "tailwindcss",
+    "components.css": "tailwindcss",
+    "theme.css": "tailwindcss"
   },
   // 格式化代码
   "editor.formatOnSave": true,
@@ -13,6 +15,14 @@
     "source.fixAll.eslint": "explicit"
   },
   "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact", "vue"],
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
   // i18n-ally配置
   "i18n-ally.sourceLanguage": "zh-CN",
   "i18n-ally.enabledParsers": ["ts"],
@@ -22,7 +32,7 @@
   "i18n-ally.enabledFrameworks": ["vue"],
   "i18n-ally.translate.engines": ["google"],
   "i18n-ally.readonly": false,
-  "i18n-ally.localesPaths": ["web-ui/src/locales"],
+  "i18n-ally.localesPaths": ["packages/shared/src/locales"],
   "i18n-ally.namespace": true,
   "i18n-ally.pathMatcher": "{locale}/{namespace}.{ext}",
   "cSpell.words": ["AMAP", "YAPI"]

@@ -1,0 +1,56 @@
+{
+  "name": "virtual-tcu-monorepo",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.33.0"
+  },
+  "scripts": {
+    "dev:dashboard": "pnpm --filter virtual-tcu-web-ui dev",
+    "dev:electron": "pnpm --filter virtual-tcu dev",
+    "build:dashboard": "pnpm --filter virtual-tcu-web-ui build",
+    "build:electron": "pnpm --filter virtual-tcu build",
+    "build": "pnpm build:dashboard && pnpm build:electron",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint . && ruff check virtual_tcu virtual_tcu.py",
+    "lint:py": "ruff check virtual_tcu virtual_tcu.py",
+    "format": "prettier --write . && ruff format virtual_tcu virtual_tcu.py",
+    "format:py": "ruff format virtual_tcu virtual_tcu.py",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^4.11.0",
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
+    "electron": "42.2.0",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "typescript": "~5.9.3",
+    "vue-tsc": "^3.2.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "@electron-toolkit/utils>electron": "42.2.0",
+      "vite": "^7.3.2"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,vue,js,cjs,mts,cts}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml,css}": [
+      "prettier --write"
+    ],
+    "*.py": [
+      "ruff check --fix",
+      "ruff format"
+    ]
+  }
+}

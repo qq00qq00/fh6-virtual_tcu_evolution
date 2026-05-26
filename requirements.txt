@@ -1,3 +1,4 @@
+# uv-managed via pyproject.toml [project.dependencies]
 keyboard>=0.13.5
 aiohttp>=3.9.0
 pypresence>=4.3.0

@@ -1,6 +1,5 @@
-from typing import Dict, Optional
-
 from virtual_tcu.telemetry.model import Telemetry
+
 
 class _ParabolaFit:
     """Incremental least-squares fit of torque = a*r^2 + b*r + c, where r
@@ -19,8 +18,8 @@ class _ParabolaFit:
         self.n = self.n * d + weight
         self.sx = self.sx * d + weight * x
         self.sx2 = self.sx2 * d + weight * x * x
-        self.sx3 = self.sx3 * d + weight * x ** 3
-        self.sx4 = self.sx4 * d + weight * x ** 4
+        self.sx3 = self.sx3 * d + weight * x**3
+        self.sx4 = self.sx4 * d + weight * x**4
         self.sy = self.sy * d + weight * y
         self.sxy = self.sxy * d + weight * x * y
         self.sx2y = self.sx2y * d + weight * x * x * y
@@ -51,10 +50,7 @@ class _ParabolaFit:
             return None
 
         def swap(mat, col, vec):
-            return [
-                [vec[r] if c == col else mat[r][c] for c in range(3)]
-                for r in range(3)
-            ]
+            return [[vec[r] if c == col else mat[r][c] for c in range(3)] for r in range(3)]
 
         a = det3(swap(m, 0, rhs)) / det
         b = det3(swap(m, 1, rhs)) / det
@@ -68,7 +64,7 @@ class _ParabolaFit:
             return 0.0
         mean = self.sx / self.n
         var = self.sx2 / self.n - mean * mean
-        return var ** 0.5 if var > 0 else 0.0
+        return var**0.5 if var > 0 else 0.0
 
 
 class PowerCurveDetector:
@@ -85,7 +81,7 @@ class PowerCurveDetector:
     GOOD_SPREAD = 0.16
 
     def __init__(self):
-        self._fits: Dict[int, _ParabolaFit] = {}
+        self._fits: dict[int, _ParabolaFit] = {}
 
     def observe(self, td: Telemetry):
         if td.car_ordinal <= 0 or td.gear < 2:
@@ -102,9 +98,7 @@ class PowerCurveDetector:
             weight *= 0.5
         if td.rear_slip > 0.5:
             weight *= 0.4
-        self._fits.setdefault(td.car_ordinal, _ParabolaFit()).add(
-            r, td.torque_nm, weight
-        )
+        self._fits.setdefault(td.car_ordinal, _ParabolaFit()).add(r, td.torque_nm, weight)
 
     def _peaks(self, car_ordinal: int):
         """Return (peak_torque_rpm, peak_power_rpm, confidence)."""
@@ -133,22 +127,24 @@ class PowerCurveDetector:
             if disc < 0:
                 pp = min(pt + 0.10, 0.95)
             else:
-                sq = disc ** 0.5
+                sq = disc**0.5
                 roots = [(-2 * b + sq) / (6 * a), (-2 * b - sq) / (6 * a)]
                 cands = [r for r in roots if pt - 0.02 <= r <= 1.0]
                 pp = max(cands) if cands else min(pt + 0.10, 0.95)
         pp = max(pt, min(0.97, pp))
 
-        n_conf = max(0.0, min(1.0,
-            (fit.n - self.MIN_SAMPLES) / (self.FULL_CONF_SAMPLES - self.MIN_SAMPLES)))
-        s_conf = max(0.0, min(1.0,
-            (fit.x_spread - self.MIN_SPREAD) / (self.GOOD_SPREAD - self.MIN_SPREAD)))
+        n_conf = max(
+            0.0, min(1.0, (fit.n - self.MIN_SAMPLES) / (self.FULL_CONF_SAMPLES - self.MIN_SAMPLES))
+        )
+        s_conf = max(
+            0.0, min(1.0, (fit.x_spread - self.MIN_SPREAD) / (self.GOOD_SPREAD - self.MIN_SPREAD))
+        )
         return pt, pp, n_conf * s_conf
 
-    def peak_torque_rpm(self, car_ordinal: int) -> Optional[float]:
+    def peak_torque_rpm(self, car_ordinal: int) -> float | None:
         return self._peaks(car_ordinal)[0]
 
-    def peak_power_rpm(self, car_ordinal: int) -> Optional[float]:
+    def peak_power_rpm(self, car_ordinal: int) -> float | None:
         return self._peaks(car_ordinal)[1]
 
     def confidence(self, car_ordinal: int) -> float:
@@ -167,4 +163,3 @@ class PowerCurveDetector:
 
     def has_data(self, car_ordinal: int) -> bool:
         return self._peaks(car_ordinal)[1] is not None
-

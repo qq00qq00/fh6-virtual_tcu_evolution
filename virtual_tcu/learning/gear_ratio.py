@@ -1,6 +1,5 @@
-from typing import Dict, Optional
-
 from virtual_tcu.telemetry.model import Telemetry
+
 
 class GearRatioCalibrator:
     """Learns rpm/kmh ratio per car/gear. The ratio is a fixed property of
@@ -15,8 +14,8 @@ class GearRatioCalibrator:
     OUTLIER_GRACE = 5  # samples before outlier rejection kicks in
 
     def __init__(self):
-        self._ratios: Dict[int, Dict[int, float]] = {}
-        self._counts: Dict[int, Dict[int, int]] = {}
+        self._ratios: dict[int, dict[int, float]] = {}
+        self._counts: dict[int, dict[int, int]] = {}
 
     def observe(self, td: Telemetry):
         if td.car_ordinal <= 0 or td.gear < 1 or td.gear > 10:
@@ -53,9 +52,7 @@ class GearRatioCalibrator:
         car_ratios[gear] = current + rate * (ratio - current)
         car_counts[gear] = n + 1
 
-    def project_rpm_after_shift(
-        self, td: Telemetry, target_gear: int
-    ) -> Optional[float]:
+    def project_rpm_after_shift(self, td: Telemetry, target_gear: int) -> float | None:
         car_ratios = self._ratios.get(td.car_ordinal)
         if not car_ratios:
             return None
@@ -64,10 +61,9 @@ class GearRatioCalibrator:
             return None
         return target_ratio * td.speed_kmh
 
-    def get_ratios(self, car_ordinal: int) -> Dict[int, float]:
+    def get_ratios(self, car_ordinal: int) -> dict[int, float]:
         """Public accessor — learned rpm/kmh ratios for a car, or empty."""
         return self._ratios.get(car_ordinal, {})
 
     def has_data(self, car_ordinal: int) -> bool:
         return car_ordinal in self._ratios and len(self._ratios[car_ordinal]) >= 2
-

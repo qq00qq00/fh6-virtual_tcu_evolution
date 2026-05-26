@@ -1,0 +1,7 @@
+dist
+out
+release
+node_modules
+virtual_tcu
+pnpm-lock.yaml
+*.md

@@ -19,7 +19,7 @@
 | 只想玩 — 托盘应用、HUD、自动更新 | [下载 Electron 安装包](#下载与使用electron-安装包) |
 | 只想玩 — 纯 Python 后端、无 Electron | [下载 backend-only 压缩包](#下载与使用backend-only-压缩包) |
 | 从仓库源码运行 / 开发 | [从源码运行](#从源码运行) |
-| 改 Vue 前端 | [web-ui/README.md](web-ui/README.md) |
+| 改 Vue 前端 | [apps/dashboard/README.md](apps/dashboard/README.md) |
 
 **平台：** 仅 **Windows 10 / 11**。请**以管理员身份运行**（全局按键注入需要）。
 
@@ -172,20 +172,20 @@ VirtualTCU/
 cd path\to\virtualTCU
 pip install -r requirements.txt
 
-cd web-ui
-npm install
-npm run build
-cd ..
+cd apps/dashboard
+pnpm install
+pnpm build
+cd ../..
 ```
 
-`npm run build` 会生成 `virtual_tcu/web/dist/`。未构建时访问 `:8765` 只会看到 HTTP **503** 提示页。
+`pnpm build` 会生成 `virtual_tcu/web/dist/`。未构建时访问 `:8765` 只会看到 HTTP **503** 提示页。
 
 ### 方式 A — Electron 壳（推荐）
 
 ```bash
-cd electron
-npm install
-npm run dev
+cd apps/electron
+pnpm install
+pnpm dev
 ```
 
 或在仓库根目录运行：`packaging\dev-electron.bat`
@@ -226,24 +226,38 @@ python -m virtual_tcu
 终端 2 — Vite 热更新：
 
 ```bash
-cd web-ui
-npm run dev
+cd apps/dashboard
+pnpm dev
 ```
 
-浏览器打开 **http://127.0.0.1:5173**（WebSocket 代理到 8765）。详见 [web-ui/README.md](web-ui/README.md)。
+浏览器打开 **http://127.0.0.1:5173**（WebSocket 代理到 8765）。详见 [apps/dashboard/README.md](apps/dashboard/README.md)。
+
+### 代码质量（monorepo）
+
+仓库根目录为 pnpm workspace。执行 `pnpm install` 后可用：
+
+| 命令 | 作用 |
+|------|------|
+| `pnpm lint` | ESLint（TS/Vue）+ Ruff（Python） |
+| `pnpm lint:py` | 对 `virtual_tcu/` 运行 Ruff check |
+| `pnpm format` | Prettier + Ruff format |
+| `pnpm format:py` | 对 `virtual_tcu/` 运行 Ruff format |
+| `pnpm typecheck` | 各 workspace 包运行 `vue-tsc` |
+
+Python 开发依赖（Ruff）可通过 `uv sync --group dev` 或 `pip install -r requirements-dev.txt` 安装。提交 Python 改动前请运行 `pnpm lint:py`。
 
 ### 本地打包 Release（维护者）
 
 ```bash
 # 1. Vue 仪表盘
-cd web-ui && npm ci && npm run build && cd ..
+cd apps/dashboard && pnpm install && pnpm build && cd ../..
 
 # 2. Python 后端（PyInstaller onedir → dist/VirtualTCU/）
 pip install pyinstaller
 pyinstaller virtual_tcu.spec --noconfirm
 
-# 3. Electron 安装包（NSIS → electron/release/VirtualTCU-*-win64.exe）
-cd electron && npm ci && npm run package
+# 3. Electron 安装包（NSIS → apps/electron/release/VirtualTCU-*-win64.exe）
+cd apps/electron && pnpm install && pnpm package
 ```
 
 推送 `v*` 标签可触发 CI，产出 Electron 安装包（`VirtualTCU-*-win64.exe` + `latest.yml`）与 backend-only 压缩包（`VirtualTCU-Backend-*-win64.zip`）。
@@ -348,8 +362,8 @@ cd electron && npm ci && npm run package
 virtualTCU/
 ├── virtual_tcu.py          # 入口
 ├── virtual_tcu/            # Python 后端包
-├── web-ui/                 # Vue 3 + Tailwind v4 仪表盘（:8765 提供）
-├── electron/               # Electron 壳（托盘、设置、HUD、自动更新）
+├── apps/dashboard/         # Vue 3 + Tailwind v4 + Naive UI 仪表盘（:8765 提供）
+├── apps/electron/          # Electron 壳（托盘、设置、HUD、自动更新）
 │   ├── src/main/index.ts   # 启动后端、生命周期、托盘、IPC、autoUpdater
 │   ├── src/settings-renderer/  # 设置窗口（Naive UI）
 │   ├── src/hud-renderer/   # 无边框透明 HUD 悬浮窗
