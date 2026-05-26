@@ -44,6 +44,8 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python dependencies
+        env:
+          VGAMEPAD_SKIP_VIGEMBUS_INSTALL: 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
