@@ -72,6 +72,7 @@ pip install -r requirements.txt
 - `keyboard` — required, global hotkey registration and virtual key injection
 - `aiohttp` — optional, enables the web UI (runs headless without it)
 - `pypresence` — optional, Discord Rich Presence integration
+- `vgamepad` — required, virtual Xbox 360 controller emulation (ViGEmBus driver needed at runtime for gamepad output mode)
 
 Dev dependencies (Ruff lint/format) are managed via `pyproject.toml` `[dependency-groups.dev]` or `requirements-dev.txt`. Install with `uv sync --group dev` or `pip install -r requirements-dev.txt`.
 
@@ -110,7 +111,7 @@ virtual_tcu/             # Python backend
   deps.py                # optional imports (keyboard, aiohttp, winsound)
   config/                # Cfg, DEFAULTS, ConfigStore
   telemetry/             # Telemetry model, FH6 parser, UDP receiver, replay logger
-  input/                 # VirtualKeyboard (E/Q injection)
+  input/                 # OutputInterface ABC, KeyboardOutput, GamepadOutput
   storage/               # ProfileStore (per-car JSON)
   core/                  # Mode enum
   detectors/             # Reverse hold, airtime, yaw transient
@@ -152,10 +153,10 @@ The Electron main process waits for the `[backend-ready]` marker on the backend'
 
 1. **TelemetryReceiver** — UDP socket on port 5555, parses FH6's 324-byte packet into a `Telemetry` dataclass
 2. **TCULogic.process()** — runs at 60Hz in the async loop, evaluates shift rules against current telemetry
-3. **VirtualKeyboard** — fires E/Q keypresses in daemon threads with configurable hold duration
+3. **OutputInterface** — fires shift commands (KeyboardOutput → E/Q keypresses, or GamepadOutput → virtual XInput buttons); configurable per `output_mode`
 4. **WebServer** — aiohttp app serves `web/dist/` and broadcasts state over WebSocket at 30Hz
 
-### Learning Systems (per-car, runtime only — not persisted)
+### Learning Systems (per-car, persisted to `tcu_profiles.json`)
 
 - **GearRatioCalibrator** — learns rpm/kmh ratio per gear from telemetry samples; enables projected-RPM calculations for over-rev protection and target gear selection
 - **PowerCurveDetector** — fits a parabola to (rpm_fraction, torque) samples; derives peak torque/power RPM analytically for optimal upshift points
@@ -174,7 +175,7 @@ Paths are resolved in `virtual_tcu/paths.py`:
 - **Frozen (PyInstaller)** — `VirtualTCU.exe` directory for writable data (`tcu_config.json`, `logs/`, etc.); `%APPDATA%/VirtualTCU/` fallback if install dir is read-only; `sys._MEIPASS/virtual_tcu/web/dist` for UI assets
 
 - `tcu_config.json` — all tunable parameters (shift points, feature toggles, hotkeys). Auto-created with defaults on first run. Editable live via web UI.
-- `tcu_profiles.json` — per-car profile storage (keyed by car_ordinal)
+- `tcu_profiles.json` — per-car profile storage keyed by `(car_ordinal, car_class, PI)`; persists gear ratios, power curve data, and rev limiter per tuned variant
 - `logs/` — gzipped telemetry replay logs (binary format with `TCULOG01` magic header)
 
 ### Web UI

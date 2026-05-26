@@ -2,6 +2,7 @@ import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC
 
 import keyboard
 
@@ -12,7 +13,7 @@ from virtual_tcu.deps import WINSOUND_OK, winsound
 from virtual_tcu.detectors.airtime import AirtimeDetector
 from virtual_tcu.detectors.reverse_hold import ReverseHoldDetector
 from virtual_tcu.detectors.yaw_transient import YawTransientDetector
-from virtual_tcu.input.keyboard import VirtualKeyboard
+from virtual_tcu.input.interface import OutputInterface
 from virtual_tcu.integrations.discord import DiscordRPC
 from virtual_tcu.learning.drive_style import DriveStyleTracker
 from virtual_tcu.learning.gear_ratio import GearRatioCalibrator
@@ -30,7 +31,7 @@ from virtual_tcu.telemetry.model import Telemetry
 class TCULogic:
     def __init__(
         self,
-        kb: VirtualKeyboard,
+        kb: OutputInterface,
         profiles: ProfileStore,
         config: ConfigStore,
         logger: TelemetryLogger,
@@ -76,7 +77,7 @@ class TCULogic:
         self._we_shifted = False
 
         self._reverse_lock_until = 0.0
-        self._current_car_ord = 0
+        self._current_car_key: tuple | None = None
 
         self._reverse_hold = ReverseHoldDetector(kb)
         self._calibrator = GearRatioCalibrator()
@@ -110,7 +111,45 @@ class TCULogic:
         if Cfg.REVERSE_HOLD_MS > 0:
             self._setup_paddle_listeners()
 
+    def save_profiles(self):
+        """Persist all learning data to ProfileStore for the current car."""
+        ck = self._current_car_key
+        if ck is None or ck[0] <= 0:
+            return
+        profile: dict = {}
+        gr = self._calibrator.dump(ck)
+        if gr is not None:
+            profile["gear_ratios"] = gr["ratios"]
+            profile["gear_counts"] = gr["counts"]
+        pc = self._power_curve.dump(ck)
+        if pc is not None:
+            profile["power_curve"] = pc
+        rl = self._rev_limiter.dump(ck)
+        if rl is not None:
+            profile["rev_limiter"] = rl
+        if profile:
+            from datetime import datetime
+
+            profile["updated_at"] = datetime.now(UTC).isoformat()
+            self._profiles.set(ck, profile)
+
+    def _load_profiles(self, ck: tuple):
+        """Restore learning data from ProfileStore for *ck*."""
+        data = self._profiles.get(ck)
+        if data is None:
+            return
+        if "gear_ratios" in data:
+            self._calibrator.load(
+                ck,
+                {"ratios": data["gear_ratios"], "counts": data.get("gear_counts", {})},
+            )
+        if "power_curve" in data:
+            self._power_curve.load(ck, data["power_curve"])
+        if "rev_limiter" in data:
+            self._rev_limiter.load(ck, data["rev_limiter"])
+
     def shutdown(self):
+        self.save_profiles()
         self._audio_executor.shutdown(wait=False)
         self._discord_executor.shutdown(wait=False)
         if self._discord_rpc:
@@ -263,19 +302,21 @@ class TCULogic:
                 "shift_hint": self._shift_hint,
                 "peak_rpm": self._peak_rpm,
                 "peak_g": self._peak_g,
-                "calibrated": self._calibrator.has_data(td.car_ordinal),
-                "power_curve_learned": self._power_curve.has_data(td.car_ordinal),
+                "calibrated": self._calibrator.has_data(td.car_key),
+                "power_curve_learned": self._power_curve.has_data(td.car_key),
                 "log_status": self._logger.status,
                 "shift_history": self._shift_history.snapshot(),
                 "session_stats": self._session_stats.snapshot(),
                 "watchdog_stuck": self._watchdog.check(),
                 "car_ordinal": td.car_ordinal,
+                "car_class": td.car_class,
+                "pi": td.pi,
                 "drive_style_index": round(self._drive_style.index, 2),
                 "drive_style_regime": self._drive_style.regime,
                 "airborne": self._airtime.is_airborne,
                 "yaw_transient": self._yaw_transient.is_blocking,
-                "peak_power_rpm_pct": self._power_curve.peak_power_rpm(td.car_ordinal),
-                "peak_torque_rpm_pct": self._power_curve.peak_torque_rpm(td.car_ordinal),
+                "peak_power_rpm_pct": self._power_curve.peak_power_rpm(td.car_key),
+                "peak_torque_rpm_pct": self._power_curve.peak_torque_rpm(td.car_key),
             }
 
     def snapshot_graph(self) -> list:
@@ -398,10 +439,24 @@ class TCULogic:
             self._tcu_state_sub = "exiting R..."
             return
 
-        if td.car_ordinal > 0 and td.car_ordinal != self._current_car_ord:
-            self._current_car_ord = td.car_ordinal
+        ck = td.car_key
+        if ck[0] > 0 and ck != self._current_car_key:
+            # Save previous car's learned state before switching.
+            if self._current_car_key is not None:
+                self.save_profiles()
+            self._current_car_key = ck
             self._peak_rpm = 0.0
             self._peak_g = 0.0
+            # Reset per-tune learning data so stale ratios / curves from a
+            # different build don't poison shift decisions.
+            self._calibrator._ratios.pop(ck, None)
+            self._calibrator._counts.pop(ck, None)
+            self._power_curve._fits.pop(ck, None)
+            self._rev_limiter._redline.pop(ck, None)
+            self._rev_limiter._rpm_window.pop(ck, None)
+            self._rev_limiter._peak_hold.pop(ck, None)
+            # Restore previously-saved learning data for this car+tune.
+            self._load_profiles(ck)
 
         current_mode = self.mode
         if current_mode != self._last_processed_mode:
@@ -680,7 +735,7 @@ class TCULogic:
         if td.gear <= 2:
             return False
 
-        peak_torque = self._power_curve.peak_torque_rpm(td.car_ordinal)
+        peak_torque = self._power_curve.peak_torque_rpm(td.car_key)
         threshold = peak_torque - 0.10 if peak_torque is not None else 0.55
         if climbing:
             threshold += 0.08
@@ -737,7 +792,7 @@ class TCULogic:
         return (new_speed - old_speed) < -0.5
 
     def _min_sensible_speed_for_gear(self, td: Telemetry) -> float:
-        ratios = self._calibrator.get_ratios(td.car_ordinal)
+        ratios = self._calibrator.get_ratios(td.car_key)
         if td.gear in ratios:
             ratio_rpm_per_kmh = ratios[td.gear]
             if ratio_rpm_per_kmh > 0:
@@ -863,15 +918,15 @@ class TCULogic:
     def _target_gear_for_braking(
         self, td: Telemetry, speed_override: float | None = None
     ) -> int | None:
-        car_ratios = self._calibrator.get_ratios(td.car_ordinal)
+        car_ratios = self._calibrator.get_ratios(td.car_key)
         if not car_ratios:
             return None
         speed = speed_override if speed_override is not None else td.speed_kmh
         if speed < 10.0:
             return 1
 
-        peak_torque = self._power_curve.peak_torque_rpm(td.car_ordinal)
-        peak_power = self._power_curve.peak_power_rpm(td.car_ordinal)
+        peak_torque = self._power_curve.peak_torque_rpm(td.car_key)
+        peak_power = self._power_curve.peak_power_rpm(td.car_key)
         if peak_torque is None or peak_power is None:
             target_rpm = td.engine_max_rpm * 0.70
         else:

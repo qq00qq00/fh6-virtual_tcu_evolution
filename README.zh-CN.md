@@ -1,4 +1,4 @@
-# Virtual TCU v13.0 — Forza Horizon 6
+# Virtual TCU v13.1 — Forza Horizon 6
 
 [![Discord](https://img.shields.io/discord/1508360305712037988?label=Discord&color=5865F2)](https://discordapp.com/invite/ghj3PGe9)
 
@@ -6,7 +6,7 @@
 
 > 本项目核心功能源码由 **Insightful** 提供，面向 [**Forza Mods**](https://discord.gg/forzamods) Discord 社区用户。
 
-面向《极限竞速：地平线 6》的外部自适应变速箱控制器。通过 UDP 读取游戏遥测，根据驾驶风格、油门、转速、车速与刹车等信号自动换挡，并向游戏注入键盘按键（**E** 升档、**Q** 降档）。
+面向《极限竞速：地平线 6》的外部自适应变速箱控制器。通过 UDP 读取游戏遥测，根据驾驶风格、油门、转速、车速与刹车等信号自动换挡，并向游戏注入换挡指令 — **键盘按键**（E/Q）或**虚拟手柄按钮**（B/X）通过 ViGEmBus。
 
 **v13** 提供 Windows 托盘桌面应用（Electron），含浮动 HUD 与自动更新；实时遥测仪表盘在浏览器 **http://127.0.0.1:8765** 打开（支持 English / 简体中文）。仍提供纯 Python 便携版，适合不需要 Electron 的用户。
 
@@ -57,7 +57,22 @@
 
 **自动更新**在启动后稍晚检查 GitHub Releases，并在后台下载新版本。Electron 与 Python 后端作为整体一起更新（可在设置窗口 **关于** 标签页查看状态）。
 
-### 3. 进游戏
+### 3. 手柄模式（可选）
+
+默认情况下，TCU 注入键盘按键（**E** 升挡 / **Q** 降挡）。如果你偏好使用虚拟手柄按钮（无需设置键盘绑定），可在 **设置 → Extras → 输出模式** 中切换到手柄模式。
+
+手柄模式需要安装 **[ViGEmBus](https://github.com/ViGEm/ViGEmBus/releases) 驱动** — 一次性系统安装：
+
+1. 从上方链接下载 `ViGEmBus_Setup_*.exe`。
+2. 以管理员身份运行 → 同意 UAC 弹窗 → 安装。
+3. **重启 Windows**（必须 — 驱动重启后才生效）。
+4. 启动 Virtual TCU，打开设置 → Extras，将 **输出模式** 切换为 **手柄**，设置你偏好的按钮（默认：**B** 升挡 / **X** 降挡），点击 **保存并重启后端**。
+
+> **已安装 Steam、DS4Windows 或 reWASD？** 这些工具会附带 ViGEmBus — 你可能已经有了。如果切换到手柄模式后在控制台看到报错，请从上方的链接安装驱动。
+
+> **驱动缺失？** TCU 会自动回退到键盘模式并持久化配置，下次启动不会再次报错。
+
+### 4. 进游戏
 
 按下方 [游戏内设置](#forza-horizon-6-游戏内设置首次配置) 配置 FH6，然后：
 
@@ -109,7 +124,7 @@ VirtualTCU-Backend-13.0.x-win64/
 
 会出现黑色命令行窗口；浏览器可能自动打开 **http://127.0.0.1:8765**，否则手动打开。
 
-### 4. 退出
+### 5. 退出
 
 切到**命令行窗口**，按 **`Ctrl + C`**，再关窗口。  
 （**不要**按 **Q** — 那是游戏内降档键。）
@@ -421,6 +436,13 @@ virtualTCU/
 
 - 自动更新仅在**打包后的** Electron 安装版中生效，`npm run dev` 不会检查更新。
 - 在设置窗口 **关于** 标签页查看更新状态。
+
+### 手柄模式不工作
+
+- 安装 **[ViGEmBus](https://github.com/ViGEm/ViGEmBus/releases) 驱动** → 重启 Windows。
+- 如果已安装，确认安装后已重启过电脑。
+- 如不想安装驱动，在设置 → Extras 中将输出模式切换回**键盘**。
+- 驱动缺失时 TCU 会自动回退到键盘模式。
 
 ---
 

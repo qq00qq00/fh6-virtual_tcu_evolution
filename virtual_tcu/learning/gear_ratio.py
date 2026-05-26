@@ -14,11 +14,12 @@ class GearRatioCalibrator:
     OUTLIER_GRACE = 5  # samples before outlier rejection kicks in
 
     def __init__(self):
-        self._ratios: dict[int, dict[int, float]] = {}
-        self._counts: dict[int, dict[int, int]] = {}
+        self._ratios: dict[tuple, dict[int, float]] = {}
+        self._counts: dict[tuple, dict[int, int]] = {}
 
     def observe(self, td: Telemetry):
-        if td.car_ordinal <= 0 or td.gear < 1 or td.gear > 10:
+        ck = td.car_key
+        if ck[0] <= 0 or td.gear < 1 or td.gear > 10:
             return
         if td.is_shifting:
             return
@@ -31,8 +32,8 @@ class GearRatioCalibrator:
         if ratio < 15 or ratio > 500:
             return
 
-        car_ratios = self._ratios.setdefault(td.car_ordinal, {})
-        car_counts = self._counts.setdefault(td.car_ordinal, {})
+        car_ratios = self._ratios.setdefault(ck, {})
+        car_counts = self._counts.setdefault(ck, {})
         gear = td.gear
 
         if gear not in car_ratios:
@@ -53,7 +54,7 @@ class GearRatioCalibrator:
         car_counts[gear] = n + 1
 
     def project_rpm_after_shift(self, td: Telemetry, target_gear: int) -> float | None:
-        car_ratios = self._ratios.get(td.car_ordinal)
+        car_ratios = self._ratios.get(td.car_key)
         if not car_ratios:
             return None
         target_ratio = car_ratios.get(target_gear)
@@ -61,9 +62,29 @@ class GearRatioCalibrator:
             return None
         return target_ratio * td.speed_kmh
 
-    def get_ratios(self, car_ordinal: int) -> dict[int, float]:
+    def get_ratios(self, car_key: tuple) -> dict[int, float]:
         """Public accessor — learned rpm/kmh ratios for a car, or empty."""
-        return self._ratios.get(car_ordinal, {})
+        return self._ratios.get(car_key, {})
 
-    def has_data(self, car_ordinal: int) -> bool:
-        return car_ordinal in self._ratios and len(self._ratios[car_ordinal]) >= 2
+    def has_data(self, car_key: tuple) -> bool:
+        return car_key in self._ratios and len(self._ratios[car_key]) >= 2
+
+    def dump(self, car_key: tuple) -> dict | None:
+        """Serialise learned ratios for *car_key*, or None if no data."""
+        if not self.has_data(car_key):
+            return None
+        return {
+            "ratios": dict(self._ratios.get(car_key, {})),
+            "counts": dict(self._counts.get(car_key, {})),
+        }
+
+    def load(self, car_key: tuple, data: dict):
+        """Restore ratios from a previously-saved dump."""
+        if not isinstance(data, dict):
+            return
+        ratios = data.get("ratios")
+        counts = data.get("counts")
+        if isinstance(ratios, dict):
+            self._ratios[car_key] = {int(k): float(v) for k, v in ratios.items()}
+        if isinstance(counts, dict):
+            self._counts[car_key] = {int(k): int(v) for k, v in counts.items()}

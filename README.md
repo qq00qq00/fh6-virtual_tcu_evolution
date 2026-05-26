@@ -1,4 +1,4 @@
-# Virtual TCU v13.0 — Forza Horizon 6
+# Virtual TCU v13.1 — Forza Horizon 6
 
 [![Discord](https://img.shields.io/discord/1508360305712037988?label=Discord&color=5865F2)](https://discordapp.com/invite/ghj3PGe9)
 
@@ -6,7 +6,7 @@
 
 > This project's core functionality is provided by **Insightful**, maintained for the [**Forza Mods**](https://discord.gg/forzamods) Discord community.
 
-An external adaptive transmission controller for *Forza Horizon 6*. It reads real-time UDP telemetry from the game, decides when to shift based on driving style, throttle, RPM, speed, and brake input, and injects keyboard keys (**E** = upshift, **Q** = downshift).
+An external adaptive transmission controller for *Forza Horizon 6*. It reads real-time UDP telemetry from the game, decides when to shift based on driving style, throttle, RPM, speed, and brake input, and injects shift commands — **keyboard keys** (E/Q) or **virtual gamepad buttons** (B/X) via ViGEmBus.
 
 **v13** ships as a Windows tray app (Electron) with a floating HUD and auto-update. The live telemetry dashboard runs in your browser at **http://127.0.0.1:8765** (English / 简体中文). A portable Python-only build is still available for users who prefer no Electron.
 
@@ -57,7 +57,22 @@ Left-click the tray icon also opens **Settings**.
 
 **Auto-update** checks GitHub Releases shortly after launch and downloads new versions in the background. The full Electron + Python bundle updates as one package (see **About** tab in Settings).
 
-### 3. Play
+### 3. Gamepad mode (optional)
+
+By default, the TCU injects keyboard keys (**E** upshift / **Q** downshift). If you prefer virtual controller buttons instead (no keyboard bindings needed), switch to gamepad mode in **Settings → Extras → Output mode**.
+
+Gamepad mode requires the **[ViGEmBus](https://github.com/ViGEm/ViGEmBus/releases) driver** — a one-time system install:
+
+1. Download `ViGEmBus_Setup_*.exe` from the link above.
+2. Run as Administrator → accept the UAC prompt → install.
+3. **Reboot Windows** (required — the driver won't work until after restart).
+4. Launch Virtual TCU, open Settings → Extras, switch **Output mode** to **Gamepad**, set your preferred buttons (default: **B** upshift / **X** downshift), and click **Save & Restart Backend**.
+
+> **Already have Steam, DS4Windows, or reWASD?** Those tools bundle ViGEmBus — you may already have it. If switching to gamepad mode prints an error in the console, install the driver from the link above.
+
+> **Driver missing?** The TCU automatically falls back to keyboard mode and persists the setting so you won't hit the error again on next launch.
+
+### 4. Play
 
 Configure FH6 once ([in-game setup](#forza-horizon-6--in-game-setup-one-time)), then:
 
@@ -66,7 +81,7 @@ Configure FH6 once ([in-game setup](#forza-horizon-6--in-game-setup-one-time)), 
 3. Optionally tray → **Toggle HUD** for the in-game overlay.
 4. Start a race — the dashboard and HUD go **live** when telemetry arrives.
 
-### 4. Quit
+### 5. Quit
 
 Tray icon → **Quit**.
 
@@ -417,6 +432,13 @@ virtualTCU/
 
 - Auto-update only runs in the **packaged** Electron installer, not in `npm run dev`.
 - Check the **About** tab in Settings for update status.
+
+### Gamepad mode not working
+
+- Install the **[ViGEmBus](https://github.com/ViGEm/ViGEmBus/releases) driver** → reboot Windows.
+- If you already installed it, make sure you rebooted after installation.
+- Switch output mode to **Keyboard** in Settings → Extras if you don't want to install the driver.
+- The TCU automatically falls back to keyboard mode if the driver is missing.
 
 ---
 

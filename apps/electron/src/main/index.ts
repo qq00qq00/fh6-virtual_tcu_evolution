@@ -15,9 +15,10 @@
 
 import type { ChildProcess } from 'node:child_process'
 import type { BackendEndpoints } from './backend-config'
-import { spawn } from 'node:child_process'
+import { exec, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { PassThrough } from 'node:stream'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray } from 'electron'
 import { autoUpdater } from 'electron-updater'
@@ -32,6 +33,7 @@ let settingsWindow: BrowserWindow | null = null
 let hudWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let backend: ChildProcess | null = null
+let backendPid: number | null = null
 let backendReady = false
 let isQuitting = false
 
@@ -86,6 +88,7 @@ function startBackend(): Promise<void> {
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
       })
+      backendPid = backend.pid ?? null
     } catch (err) {
       rejectStart(err)
       return
@@ -99,28 +102,48 @@ function startBackend(): Promise<void> {
       }
     }, 30_000)
 
-    backend.stdout?.on('data', (chunk: Buffer) => {
-      const text = chunk.toString('utf-8')
-      process.stdout.write(`[backend] ${text}`)
-      const parsedUrl = parseWebUiUrl(text)
-      if (parsedUrl)
-        backendEndpoints = endpointsFromHttpUrl(parsedUrl, resolveBackendEndpoints(backendDataCwd))
-      if (!settled && text.includes(READY_MARKER)) {
-        settled = true
-        backendReady = true
-        if (!parsedUrl) backendEndpoints = resolveBackendEndpoints(backendDataCwd)
-        clearTimeout(timeout)
-        broadcastBackendReady()
-        resolveStart()
+    // Pipe backend stdout through a PassThrough so we can both forward it
+    // (async, respects backpressure) AND listen for the READY_MARKER.
+    // Use line-buffered parsing — 'data' fires on arbitrary chunk boundaries,
+    // and the marker could be split across two chunks.  We split on \n, carry
+    // the trailing partial across events, and check each complete line.
+    const stdoutPass = new PassThrough()
+    backend.stdout?.pipe(stdoutPass).pipe(process.stdout)
+    let _lineBuf = ''
+    stdoutPass.on('data', (chunk: Buffer) => {
+      const raw = _lineBuf + chunk.toString('utf-8')
+      const lines = raw.split('\n')
+      // The last element is either a partial line or '' (if the chunk ended
+      // with \n).  Keep it for the next chunk.
+      _lineBuf = lines.pop() ?? ''
+      for (const line of lines) {
+        if (line.length === 0) continue
+        const parsedUrl = parseWebUiUrl(line)
+        if (parsedUrl)
+          backendEndpoints = endpointsFromHttpUrl(
+            parsedUrl,
+            resolveBackendEndpoints(backendDataCwd),
+          )
+        if (!settled && line.includes(READY_MARKER)) {
+          settled = true
+          backendReady = true
+          if (!parsedUrl) backendEndpoints = resolveBackendEndpoints(backendDataCwd)
+          clearTimeout(timeout)
+          broadcastBackendReady()
+          resolveStart()
+        }
       }
     })
-    backend.stderr?.on('data', (chunk: Buffer) => {
-      process.stderr.write(`[backend!] ${chunk.toString('utf-8')}`)
-    })
+    // Pipe stderr directly — no marker detection needed.
+    backend.stderr?.pipe(process.stderr)
     backend.on('exit', (code, signal) => {
       console.log(`[backend] exited code=${code} signal=${signal}`)
-      backend = null
-      backendReady = false
+      // Only clear state if this is still the current backend (PID guard
+      // prevents a late exit event from the old process wiping a new one).
+      if (backend?.pid === backendPid) {
+        backend = null
+        backendReady = false
+      }
       if (!settled) {
         settled = true
         clearTimeout(timeout)
@@ -142,15 +165,56 @@ function startBackend(): Promise<void> {
   })
 }
 
-function stopBackend(): void {
-  if (!backend) return
-  try {
-    backend.kill()
-  } catch (err) {
-    console.warn('[backend] kill failed:', err)
-  }
-  backend = null
-  backendReady = false
+function stopBackend(): Promise<void> {
+  return new Promise((resolve) => {
+    const proc = backend
+    const pid = backendPid
+    if (!proc || pid == null) {
+      backend = null
+      backendPid = null
+      backendReady = false
+      resolve()
+      return
+    }
+
+    // Capture before we null the refs — the exit handler will clear them
+    // via the PID guard only if this pid still matches.
+    backend = null
+    backendPid = null
+    backendReady = false
+
+    let settled = false
+    let forceTimeout: ReturnType<typeof setTimeout>
+    const done = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(forceTimeout)
+      resolve()
+    }
+
+    proc.once('exit', done)
+    forceTimeout = setTimeout(() => {
+      console.warn(`[backend] exit event did not fire for pid ${pid} — resolving anyway`)
+      done()
+    }, 5_000)
+
+    if (process.platform === 'win32') {
+      // /T = tree kill (children included), /F = force
+      exec(`taskkill /F /T /PID ${pid}`, (err) => {
+        if (err) {
+          // taskkill returns non-zero if the process is already gone — that's fine.
+          console.warn(`[backend] taskkill pid ${pid}: ${err.message}`)
+        }
+      })
+    } else {
+      // Negative pid kills the entire process group on POSIX.
+      try {
+        process.kill(-pid, 'SIGKILL')
+      } catch {
+        // Process already dead — expected.
+      }
+    }
+  })
 }
 
 // ----- Windows ---------------------------------------------------------------
@@ -187,7 +251,7 @@ function createSettingsWindow() {
     title: 'Virtual TCU',
     webPreferences: {
       preload: join(__dirname, '..', 'preload', 'main.js'),
-      sandbox: false,
+      sandbox: true,
       backgroundThrottling: false,
     },
   })
@@ -262,7 +326,7 @@ function createHudWindow() {
     backgroundColor: '#00000000',
     webPreferences: {
       preload: join(__dirname, '..', 'preload', 'hud.js'),
-      sandbox: false,
+      sandbox: true,
       backgroundThrottling: false,
     },
   })
@@ -288,10 +352,10 @@ function createHudWindow() {
 // ----- Tray ------------------------------------------------------------------
 
 function createTray() {
-  // Using an empty image keeps things working without bundling an icon yet.
-  // Replace with `nativeImage.createFromPath(join(__dirname, '..', 'icon.png'))`
-  // when you ship one.
-  const icon = nativeImage.createEmpty()
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'icon.ico')
+    : join(__dirname, '..', '..', 'build', 'icon.ico')
+  const icon = nativeImage.createFromPath(iconPath)
   tray = new Tray(icon)
   tray.setToolTip('Virtual TCU')
 
@@ -309,7 +373,11 @@ function createTray() {
     {
       label: 'Restart Backend',
       click: async () => {
-        stopBackend()
+        await stopBackend()
+        // Windows may hold the port briefly after process exit (TIME_WAIT).
+        if (process.platform === 'win32') {
+          await new Promise((r) => setTimeout(r, 300))
+        }
         await startBackend()
       },
     },
@@ -365,6 +433,14 @@ function registerIpc() {
 
   ipcMain.handle('hud:set-ignore-mouse', (_e, ignore: boolean) => {
     hudWindow?.setIgnoreMouseEvents(ignore, { forward: true })
+  })
+
+  ipcMain.handle('app:restart-backend', async () => {
+    await stopBackend()
+    if (process.platform === 'win32') {
+      await new Promise((r) => setTimeout(r, 300))
+    }
+    await startBackend()
   })
 
   ipcMain.handle('updater:check', async () => {
@@ -472,12 +548,16 @@ if (!gotLock) {
 app.on('before-quit', () => {
   isQuitting = true
   stopBackend()
+  tray?.destroy()
+  tray = null
 })
 
 app.on('window-all-closed', () => {
   // Stay alive in tray on Windows; explicit quit happens via tray menu.
   if (process.platform !== 'win32') {
     isQuitting = true
+    tray?.destroy()
+    tray = null
     app.quit()
   }
 })

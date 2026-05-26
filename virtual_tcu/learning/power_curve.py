@@ -58,6 +58,28 @@ class _ParabolaFit:
         self._abc = (a, b, c)
         return self._abc
 
+    def to_dict(self) -> dict:
+        """Serialise accumulator state so the fit can be restored later."""
+        return {
+            "n": self.n,
+            "sx": self.sx,
+            "sx2": self.sx2,
+            "sx3": self.sx3,
+            "sx4": self.sx4,
+            "sy": self.sy,
+            "sxy": self.sxy,
+            "sx2y": self.sx2y,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "_ParabolaFit":
+        """Restore a fit from a previously-saved to_dict() snapshot."""
+        fit = cls()
+        for attr in ("n", "sx", "sx2", "sx3", "sx4", "sy", "sxy", "sx2y"):
+            if attr in d:
+                setattr(fit, attr, float(d[attr]))
+        return fit
+
     @property
     def x_spread(self) -> float:
         if self.n < 2:
@@ -81,10 +103,11 @@ class PowerCurveDetector:
     GOOD_SPREAD = 0.16
 
     def __init__(self):
-        self._fits: dict[int, _ParabolaFit] = {}
+        self._fits: dict[tuple, _ParabolaFit] = {}
 
     def observe(self, td: Telemetry):
-        if td.car_ordinal <= 0 or td.gear < 2:
+        ck = td.car_key
+        if ck[0] <= 0 or td.gear < 2:
             return
         if td.throttle < 0.45 or td.torque_nm <= 0 or td.is_shifting:
             return
@@ -98,11 +121,11 @@ class PowerCurveDetector:
             weight *= 0.5
         if td.rear_slip > 0.5:
             weight *= 0.4
-        self._fits.setdefault(td.car_ordinal, _ParabolaFit()).add(r, td.torque_nm, weight)
+        self._fits.setdefault(ck, _ParabolaFit()).add(r, td.torque_nm, weight)
 
-    def _peaks(self, car_ordinal: int):
+    def _peaks(self, car_key: tuple):
         """Return (peak_torque_rpm, peak_power_rpm, confidence)."""
-        fit = self._fits.get(car_ordinal)
+        fit = self._fits.get(car_key)
         if fit is None or fit.n < self.MIN_SAMPLES:
             return None, None, 0.0
         abc = fit.solve()
@@ -141,19 +164,19 @@ class PowerCurveDetector:
         )
         return pt, pp, n_conf * s_conf
 
-    def peak_torque_rpm(self, car_ordinal: int) -> float | None:
-        return self._peaks(car_ordinal)[0]
+    def peak_torque_rpm(self, car_key: tuple) -> float | None:
+        return self._peaks(car_key)[0]
 
-    def peak_power_rpm(self, car_ordinal: int) -> float | None:
-        return self._peaks(car_ordinal)[1]
+    def peak_power_rpm(self, car_key: tuple) -> float | None:
+        return self._peaks(car_key)[1]
 
-    def confidence(self, car_ordinal: int) -> float:
-        return self._peaks(car_ordinal)[2]
+    def confidence(self, car_key: tuple) -> float:
+        return self._peaks(car_key)[2]
 
     def optimal_upshift_rpm(
         self, td: Telemetry, fallback: float = 0.85, offset: float = 0.03
     ) -> float:
-        pt, pp, conf = self._peaks(td.car_ordinal)
+        pt, pp, conf = self._peaks(td.car_key)
         if pp is None:
             return fallback
         model = max(0.65, min(0.97, pp + offset))
@@ -161,5 +184,16 @@ class PowerCurveDetector:
         # mature ones trust the model fully.
         return conf * model + (1.0 - conf) * fallback
 
-    def has_data(self, car_ordinal: int) -> bool:
-        return self._peaks(car_ordinal)[1] is not None
+    def has_data(self, car_key: tuple) -> bool:
+        return self._peaks(car_key)[1] is not None
+
+    def dump(self, car_key: tuple) -> dict | None:
+        """Serialise the parabola fit for *car_key*, or None if no data."""
+        fit = self._fits.get(car_key)
+        return fit.to_dict() if fit is not None else None
+
+    def load(self, car_key: tuple, data: dict):
+        """Restore a parabola fit from a previously-saved dump."""
+        if not isinstance(data, dict):
+            return
+        self._fits[car_key] = _ParabolaFit.from_dict(data)

@@ -24,18 +24,18 @@ class RevLimiterDetector:
     MIN_OSCILLATION = 150.0
 
     def __init__(self):
-        self._redline: dict[int, float] = {}
-        self._rpm_window: dict[int, deque[float]] = {}
-        self._peak_hold: dict[int, tuple] = {}
+        self._redline: dict[tuple, float] = {}
+        self._rpm_window: dict[tuple, deque[float]] = {}
+        self._peak_hold: dict[tuple, tuple] = {}
 
-    def _reset(self, car: int):
+    def _reset(self, car: tuple):
         self._rpm_window.pop(car, None)
         self._peak_hold.pop(car, None)
 
     def observe(self, td: Telemetry, last_downshift_time: float, now: float):
-        car = td.car_ordinal
+        car = td.car_key
         if (
-            car <= 0
+            car[0] <= 0
             or td.is_shifting
             or td.engine_max_rpm <= 0
             or td.throttle < self.MIN_THROTTLE
@@ -77,4 +77,13 @@ class RevLimiterDetector:
                 self._redline[car] = held_peak
 
     def effective_redline(self, td: Telemetry) -> float | None:
-        return self._redline.get(td.car_ordinal)
+        return self._redline.get(td.car_key)
+
+    def dump(self, car: tuple) -> float | None:
+        """Return the learned redline for *car*, or None."""
+        return self._redline.get(car)
+
+    def load(self, car: tuple, redline: float):
+        """Restore a previously-learned redline for *car*."""
+        if isinstance(redline, (int, float)) and redline > 0:
+            self._redline[car] = float(redline)

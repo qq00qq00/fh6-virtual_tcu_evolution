@@ -72,5 +72,15 @@ class Telemetry:
         return self.brake_raw / 255.0
 
     @property
+    def car_key(self) -> tuple[int, int, int]:
+        """Composite vehicle identifier — distinct per car model *and* tune.
+
+        ``car_ordinal`` alone is not enough: the same car with a different
+        tune (gearing / engine swap / PI change) keeps the same ordinal,
+        so the learning systems would silently reuse stale data.
+        Including ``car_class`` and ``pi`` disambiguates tuned variants."""
+        return (self.car_ordinal, self.car_class, self.pi)
+
+    @property
     def drivetrain_name(self) -> str:
         return {0: "FWD", 1: "RWD", 2: "AWD"}.get(self.drivetrain, "—")

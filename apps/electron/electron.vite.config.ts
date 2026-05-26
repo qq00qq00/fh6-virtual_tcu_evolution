@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 
-const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'))
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'))
 const versionDefine = { __APP_VERSION__: JSON.stringify(pkg.version) }
 
 export default defineConfig({

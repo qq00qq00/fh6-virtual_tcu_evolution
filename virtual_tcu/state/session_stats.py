@@ -20,7 +20,7 @@ class SessionStats:
         self.peak_power_kw = 0.0
         self.throttle_avg_sum = 0.0
         self.throttle_avg_n = 0
-        self.cars_driven: set[int] = set()
+        self.cars_driven: set[tuple] = set()
         self._lock = threading.Lock()
 
     def record_shift(self, action: str, reason: str = ""):
@@ -53,7 +53,7 @@ class SessionStats:
             self.throttle_avg_sum += td.throttle
             self.throttle_avg_n += 1
             if td.car_ordinal > 0:
-                self.cars_driven.add(td.car_ordinal)
+                self.cars_driven.add(td.car_key)
 
     def snapshot(self) -> dict:
         with self._lock:
