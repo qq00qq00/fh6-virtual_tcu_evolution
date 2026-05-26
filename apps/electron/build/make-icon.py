@@ -21,6 +21,11 @@ def main() -> None:
         print(f"Source not found: {src}", file=sys.stderr)
         raise SystemExit(1)
     img = Image.open(src).convert("RGBA")
+    # Windows ICO requires square frames; largest must be >= 256x256 for electron-builder.
+    side = max(img.size)
+    square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    square.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
+    img = square
     img.save(out, format="ICO", sizes=SIZES)
     print(f"Wrote {out} ({out.stat().st_size} bytes)")
 
