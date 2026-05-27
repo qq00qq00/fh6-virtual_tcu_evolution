@@ -1,5 +1,28 @@
 # Changelog
 
+## [13.1.1] — 2026-05-27
+
+### Added
+
+- **ViGEmBus driver installer bundled** — `driver/ViGEmBusSetup_x64.msi` is included in the Electron installer (`resources/driver/`) and published in the repo for direct download. Settings UI shows an **Install Driver** button that launches the bundled MSI.
+- **Gamepad driver pre-check** — switching to gamepad mode in settings runs a WebSocket `check_gamepad` probe before saving config, with localized error prompts and an install shortcut when the driver is missing.
+- **`effective_output_mode` in WebSocket init** — the dashboard now knows whether the backend is actually running keyboard or gamepad output (config alone may differ until restart).
+
+### Changed
+
+- **Lightweight gamepad availability check** — the probe now opens a transient ViGEmBus connection instead of spawning a temporary virtual XInput device, avoiding ghost controllers and false "driver not installed" errors while a gamepad is already active.
+- **PyInstaller vgamepad bundling** — `virtual_tcu.spec` collects `ViGEmClient.dll` and vgamepad hidden imports without importing the package at build time (CI/build hosts do not need ViGEmBus installed).
+- **Lazy vgamepad import** — removed the startup `import vgamepad` from `deps.py` so keyboard mode still launches if the gamepad client DLL is unavailable.
+- **`installViGEmBus` refactored** into the settings store for cleaner encapsulation across Electron and Web UI contexts.
+
+### Fixed
+
+- **Packaged backend crash on startup** — PyInstaller now bundles `ViGEmClient.dll` under `vgamepad/win/vigem/client/{x64,x86}/`, fixing `FileNotFoundError` in release builds.
+- **False gamepad driver detection** — skip the probe when the backend is already in gamepad mode; increased check timeout to 8 s for cold PyInstaller imports.
+- **Electron backend lifecycle** — kill hung/orphaned backend processes on restart; validate HTTP/HTTPS URLs before `openExternal`; ensure backend shuts down cleanly on app quit.
+
+---
+
 ## [13.1.0] — 2026-05-27
 
 ### Added
@@ -25,6 +48,29 @@
 ---
 
 # 更新日志
+
+## [13.1.1] — 2026-05-27
+
+### 新增
+
+- **内置 ViGEmBus 驱动安装包** — `driver/ViGEmBusSetup_x64.msi` 随 Electron 安装包分发（`resources/driver/`），并上传至仓库供直接下载。设置页提供 **安装驱动** 按钮，一键启动内置 MSI。
+- **手柄驱动预检** — 在设置中切换到手柄模式时，保存配置前通过 WebSocket `check_gamepad` 检测驱动是否可用；失败时显示本地化提示，并可直接跳转安装。
+- **WebSocket init 新增 `effective_output_mode`** — 前端可获知后端当前实际运行的输出模式（键盘/手柄），而不只看 config 里的配置值（切换后需重启后端才生效）。
+
+### 变更
+
+- **轻量级手柄可用性检测** — 预检改为临时连接 ViGEmBus 总线，不再创建临时虚拟 XInput 手柄，避免产生 ghost 手柄，以及在后端已运行手柄模式时误报「驱动未安装」。
+- **PyInstaller vgamepad 打包** — `virtual_tcu.spec` 在不 import vgamepad 的前提下收集 `ViGEmClient.dll` 及 hidden imports，CI/构建机无需安装 ViGEmBus 驱动。
+- **vgamepad 延迟加载** — 移除 `deps.py` 启动时的 `import vgamepad`，手柄客户端 DLL 不可用时键盘模式仍可正常启动。
+- **`installViGEmBus` 重构** — 移入 settings store，Electron 设置窗口与 Web UI 共用更清晰的封装。
+
+### 修复
+
+- **打包版后端启动崩溃** — PyInstaller 现会将 `ViGEmClient.dll` 打入 `vgamepad/win/vigem/client/{x64,x86}/`，修复发版后 `FileNotFoundError`。
+- **手柄驱动误报** — 后端已在手柄模式运行时跳过预检；检测超时延长至 8 秒，适配 PyInstaller 冷启动较慢的 import。
+- **Electron 后端生命周期** — 重启时清理挂死/孤儿后端进程；`openExternal` 前校验 HTTP/HTTPS URL；退出应用前确保后端正常关闭。
+
+---
 
 ## [13.1.0] — 2026-05-27
 

@@ -46,6 +46,7 @@ export interface SettingsContext {
     logStatus: Ref<{ recording: boolean; packets: number; size_kb: number } | null>
     packetsTotal: Ref<number>
     webUrls: Ref<{ local?: string; lan?: string; udp_port?: number } | null>
+    effectiveOutputMode: Ref<'keyboard' | 'gamepad' | null>
     modal: { open: boolean; title: string; text: string; readOnly: boolean; mode: string }
     setMode: (id: string) => void
     setConfig: (key: string, value: unknown) => void
