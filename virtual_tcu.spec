@@ -1,13 +1,39 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec — onedir bundle with pre-built web/dist."""
 
+import importlib.util
 from pathlib import Path
 
-import vgamepad
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
 project_root = Path(SPECPATH)
+
+
+def _vgamepad_package_root() -> Path:
+    """Locate vgamepad on disk without importing it.
+
+    Importing vgamepad connects to ViGEmBus at module load time, which fails
+    on CI/build hosts that do not have the driver installed.
+    """
+    spec = importlib.util.find_spec("vgamepad")
+    if spec is None or not spec.submodule_search_locations:
+        raise SystemExit("vgamepad not installed — pip install vgamepad before building")
+    return Path(spec.submodule_search_locations[0])
+
+
+def _vgamepad_hiddenimports(root: Path) -> list[str]:
+    names = {"vgamepad"}
+    for path in root.rglob("*.py"):
+        rel = path.relative_to(root)
+        if rel.name == "__init__.py":
+            if rel.parent == Path("."):
+                continue
+            names.add("vgamepad." + ".".join(rel.parent.parts))
+        else:
+            names.add("vgamepad." + ".".join(rel.with_suffix("").parts))
+    return sorted(names)
+
 
 dist_data = project_root / "virtual_tcu" / "web" / "dist"
 if not dist_data.is_dir():
@@ -17,11 +43,14 @@ if not dist_data.is_dir():
 
 _kb_datas, _kb_binaries, _kb_hidden = collect_all("keyboard")
 _aio_datas, _aio_binaries, _aio_hidden = collect_all("aiohttp")
-_vg_datas, _vg_binaries, _vg_hidden = collect_all("vgamepad")
+
+_vg_root = _vgamepad_package_root()
+_vg_binaries: list[tuple[str, str]] = []
+_vg_hidden = _vgamepad_hiddenimports(_vg_root)
 
 # vgamepad loads ViGEmClient.dll via a hard-coded relative path at import time;
-# PyInstaller does not always pick up nested package DLLs without explicit datas.
-_vg_client = Path(vgamepad.__file__).parent / "win" / "vigem" / "client"
+# ensure both arch variants land under the exact tree vigem_client.py expects.
+_vg_client = _vg_root / "win" / "vigem" / "client"
 _vg_dll_datas = [
     (str(_vg_client / arch / "ViGEmClient.dll"), f"vgamepad/win/vigem/client/{arch}")
     for arch in ("x64", "x86")
@@ -58,7 +87,6 @@ a = Analysis(
     datas=[(str(dist_data), "virtual_tcu/web/dist")]
     + _kb_datas
     + _aio_datas
-    + _vg_datas
     + _vg_dll_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
