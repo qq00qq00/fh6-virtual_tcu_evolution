@@ -18,18 +18,24 @@ export interface UpdaterStatus {
   error?: string
 }
 
+export interface IpcActionResult {
+  ok: boolean
+  error?: string
+}
+
 const api = {
   toggleHud: () => ipcRenderer.invoke('hud:toggle'),
   closeHud: () => ipcRenderer.invoke('hud:close'),
   openDashboard: () => ipcRenderer.invoke('app:open-dashboard'),
-  openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
+  openExternal: (url: string): Promise<IpcActionResult> =>
+    ipcRenderer.invoke('app:open-external', url),
   openSettings: () => ipcRenderer.invoke('app:open-settings'),
   checkForUpdates: (): Promise<UpdaterCheckResult> => ipcRenderer.invoke('updater:check'),
   quitAndInstallUpdate: () => ipcRenderer.invoke('updater:quit-and-install'),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
   getBackendInfo: () => ipcRenderer.invoke('app:get-backend-info'),
   restartBackend: () => ipcRenderer.invoke('app:restart-backend'),
-  installViGEmBus: () => ipcRenderer.invoke('app:install-vigembus'),
+  installViGEmBus: (): Promise<IpcActionResult> => ipcRenderer.invoke('app:install-vigembus'),
   onBackendReady: (cb: (info: { wsUrl?: string; url?: string; ready?: boolean }) => void) => {
     const listener = (_: unknown, info: { wsUrl?: string; url?: string; ready?: boolean }) =>
       cb(info)
