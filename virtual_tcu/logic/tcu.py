@@ -506,6 +506,15 @@ class TCULogic:
                 self._tcu_state_sub = "stabilizing"
                 return
 
+        # Global airborne hold: while the wheels are off the ground, wheel-
+        # derived speed/RPM are meaningless, so freeze every automatic shift —
+        # including the pre-dispatch GEAR MISMATCH / STANDSTILL paths that the
+        # per-mode transient block never reached.
+        if self._config.get("feat_airtime_lock") and self._airtime.is_airborne:
+            self._tcu_state = "AIRBORNE"
+            self._tcu_state_sub = "holding decisions"
+            return
+
         min_sensible_speed = self._min_sensible_speed_for_gear(td)
         if td.gear >= 2 and td.speed_kmh < min_sensible_speed and td.rpm_pct < 0.40:
             self._tcu_state = "GEAR MISMATCH"

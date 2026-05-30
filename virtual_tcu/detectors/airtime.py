@@ -6,8 +6,8 @@ from virtual_tcu.telemetry.model import Telemetry
 @dataclass(frozen=True)
 class AirState:
     """Per-frame airtime result. ``airborne`` is the steady state; the two
-    ``*_started`` / ``just_landed`` flags are one-frame edges the caller uses
-    to fire takeoff / landing hooks exactly once."""
+    edge flags fire exactly once so the caller can run takeoff / landing
+    hooks without tracking previous state itself."""
 
     airborne: bool
     airborne_started: bool
@@ -15,89 +15,58 @@ class AirState:
 
 
 class AirtimeDetector:
-    """Detects the car leaving the ground and the moment it lands again.
+    """Detects the car leaving the ground and the moment it lands again,
+    from vertical proper-acceleration (``accel_y``).
 
-    Evidence is weighted rather than all-or-nothing: vertical motion
-    (``vel_y``) and low vertical G are the gate, wheel slip grades the
-    confidence. All four wheels spinning is strong evidence and engages in
-    two frames; two-to-three wheels is medium and needs three. A short
-    landing window stays open after touchdown so the shift logic can pull a
-    recovery gear before normal rules resume."""
+    Empirically verified against FH6 replay telemetry: grounded driving sits
+    at ``accel_y ≈ 0``, sustained free-fall reads ``≈ -12.5`` for the whole
+    jump arc (gravity, sign-negative), and a landing impact spikes sharply
+    positive (seen up to +195) before settling back to zero.
 
-    LOW_VERTICAL_G_THRESHOLD = 3.0
-    VERTICAL_VEL_THRESHOLD = 1.0
-    VERTICAL_VEL_GROUNDED = 0.6
-    SLIP_WHEEL_THRESHOLD = 1.2
-    MIN_SPEED_FOR_AIRBORNE = 20.0
-    FRAMES_STRONG_ENGAGE = 2
-    FRAMES_MEDIUM_ENGAGE = 3
+    Wheel slip is **not** used: in real logs it frequently reads 0 even mid-
+    air, so the previous "all four wheels spinning" gate never engaged and
+    the car kept shifting in flight. ``vel_y`` is a poor primary signal too —
+    it flips sign across the arc (up then down) while ``accel_y`` stays
+    negative throughout — so the vertical acceleration is the clean
+    discriminator and the only one we key on."""
+
+    FREEFALL_G = -6.0  # accel_y below this = free-fall (enter airborne)
+    GROUND_G = -4.0  # accel_y above this = back on the ground (exit)
+    MIN_SPEED_FOR_AIRBORNE = 15.0
+    FRAMES_TO_ENGAGE = 3
     FRAMES_TO_DISENGAGE = 2
     LANDING_WINDOW_S = 0.75
 
     def __init__(self):
-        self._strong_streak = 0
-        self._entry_streak = 0  # medium-or-stronger frames in a row
-        self._grounded_streak = 0
+        self._air_streak = 0
+        self._ground_streak = 0
         self._is_airborne = False
         self._landing_until = 0.0
 
     def update(self, td: Telemetry, now: float) -> AirState:
-        low_g = abs(td.accel_y) < self.LOW_VERTICAL_G_THRESHOLD
-        vertical_motion = abs(td.vel_y) > self.VERTICAL_VEL_THRESHOLD
-        thr = self.SLIP_WHEEL_THRESHOLD
-        n_slip = (
-            (abs(td.slip_fl) > thr)
-            + (abs(td.slip_fr) > thr)
-            + (abs(td.slip_rl) > thr)
-            + (abs(td.slip_rr) > thr)
-        )
-
-        # Gate: must be moving and either free-falling (low G) or visibly
-        # travelling vertically. Without the gate, plain wheelspin on tarmac
-        # would read as airborne.
-        gate = td.speed_kmh > self.MIN_SPEED_FOR_AIRBORNE and (low_g or vertical_motion)
-
-        strong = gate and n_slip == 4
-        medium = gate and n_slip >= 2
-        any_evidence = gate and (n_slip >= 2 or (vertical_motion and low_g))
-
-        if strong:
-            self._strong_streak += 1
-        else:
-            self._strong_streak = 0
-        if medium:
-            self._entry_streak += 1
-        else:
-            self._entry_streak = 0
+        falling = td.accel_y < self.FREEFALL_G and td.speed_kmh > self.MIN_SPEED_FOR_AIRBORNE
+        # Hysteresis band (-6 .. -4): neither vote advances, so a value hovering
+        # near the threshold can't flap the state.
+        grounded = td.accel_y > self.GROUND_G
 
         airborne_started = False
         just_landed = False
 
         if not self._is_airborne:
-            if (
-                self._strong_streak >= self.FRAMES_STRONG_ENGAGE
-                or self._entry_streak >= self.FRAMES_MEDIUM_ENGAGE
-            ):
+            self._air_streak = self._air_streak + 1 if falling else 0
+            if self._air_streak >= self.FRAMES_TO_ENGAGE:
                 self._is_airborne = True
-                self._grounded_streak = 0
+                self._ground_streak = 0
                 airborne_started = True
         else:
-            # Any evidence (down to a weak vel_y candidate) keeps us aloft and
-            # bridges momentary slip dropouts at the jump's apex.
-            grounded_vote = (
-                not any_evidence
-                and abs(td.vel_y) < self.VERTICAL_VEL_GROUNDED
-                and not low_g
-                and n_slip == 0
-            )
-            if grounded_vote:
-                self._grounded_streak += 1
-                if self._grounded_streak >= self.FRAMES_TO_DISENGAGE:
-                    self._is_airborne = False
-                    self._landing_until = now + self.LANDING_WINDOW_S
-                    just_landed = True
-            else:
-                self._grounded_streak = 0
+            # The positive landing-impact spike is well above GROUND_G, so it
+            # counts as a ground vote and triggers the landing edge promptly.
+            self._ground_streak = self._ground_streak + 1 if grounded else 0
+            if self._ground_streak >= self.FRAMES_TO_DISENGAGE:
+                self._is_airborne = False
+                self._air_streak = 0
+                self._landing_until = now + self.LANDING_WINDOW_S
+                just_landed = True
 
         return AirState(
             airborne=self._is_airborne,
