@@ -14,6 +14,7 @@ from virtual_tcu.console import configure_stdio_utf8
 from virtual_tcu.deps import AIOHTTP_OK
 from virtual_tcu.input import KeyboardOutput
 from virtual_tcu.input.gamepad_output import GamepadOutput
+from virtual_tcu.input.vjoy_output import VJoyOutput
 from virtual_tcu.logic.tcu import TCULogic
 from virtual_tcu.storage.profiles import ProfileStore
 from virtual_tcu.telemetry.logger import TelemetryLogger
@@ -154,6 +155,14 @@ def main():
             # Do NOT overwrite output_mode — the user explicitly chose gamepad.
             # Their preference is preserved so it takes effect once the driver
             # is installed and the backend is restarted.
+    elif output_mode == "vjoy":
+        try:
+            kb = VJoyOutput(config)
+        except RuntimeError as e:
+            print("-" * 66)
+            print("  [!!] VJOY MODE UNAVAILABLE")
+            print(f"  {e}")
+            print("  The vJoy driver is not installed.")
     else:
         kb = KeyboardOutput(config)
 
