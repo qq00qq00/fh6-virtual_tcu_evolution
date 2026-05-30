@@ -13,6 +13,7 @@ class Cfg:
     ANTI_STALL_RPM = 1100
     MIN_SPEED_KMH = 12.0
     OVER_REV_LIMIT = 1.02
+    IMPACT_DECEL_KMH = 25.0  # single-frame speed collapse this large = a crash/impact
     REVERSE_HOLD_MS = 700
     REVERSE_EXIT_MS = 500
     BRAKE_SPIKE_DELTA = 0.30
@@ -32,12 +33,14 @@ DEFAULTS = {
     "race_up_wot": 94,
     "race_power_thr": 68,
     "race_power_floor": 60,
+    "race_coast_rpm": 30,
     "drift_up": 92,
     "drift_down": 65,
     "offroad_up_idle": 35,
     "offroad_up_mid": 72,
     "offroad_up_wot": 90,
     "offroad_down_rpm": 55,
+    "offroad_coast_rpm": 32,
     "brake_thr": 35,
     "kickdown_pedal": 78,
     "kickdown_rpm": 50,

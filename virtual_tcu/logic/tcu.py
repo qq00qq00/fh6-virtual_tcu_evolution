@@ -499,7 +499,15 @@ class TCULogic:
             return
 
         if now < self._lock_until:
-            if td.brake > 0.45 and (self._lock_until - now) > 0.20:
+            if self._just_impacted():
+                # A crash collapses speed in a single frame, leaving the car
+                # stranded in a now-meaningless gear. Drop the post-shift lock
+                # so the GEAR MISMATCH recovery (and coast recovery) below can
+                # act this frame — the driver rarely brakes through an impact,
+                # so the brake escape would never fire.
+                self._lock_until = now
+                self._no_downshift_until = 0.0
+            elif td.brake > 0.45 and (self._lock_until - now) > 0.20:
                 self._lock_until = now + 0.20
             else:
                 self._tcu_state = "POST-SHIFT"
@@ -721,6 +729,17 @@ class TCULogic:
         old = sum(recent[:3]) / 3
         new = sum(recent[-3:]) / 3
         return (old - new) > delta
+
+    def _just_impacted(self) -> bool:
+        """A single-frame speed collapse — the signature of a crash or hard
+        wall hit. The speed channel craters tens of km/h between packets, far
+        beyond what tyres can scrub. Used to break out of the post-shift lock
+        so the over-geared recovery can take over immediately, since the
+        driver rarely brakes through an impact."""
+        if len(self._speed_history) < 2:
+            return False
+        recent = list(self._speed_history)
+        return (recent[-2] - recent[-1]) > Cfg.IMPACT_DECEL_KMH
 
     def _should_track_brake_downshift(self, td: Telemetry, base_thr: float) -> bool:
         """Brake-downshift gate for sporty modes (Race / Offroad). Unlike the
@@ -1139,6 +1158,25 @@ class TCULogic:
             return False
         return True
 
+    def _track_coast_downshift(self, td: Telemetry, now: float, coast_rpm: float) -> bool:
+        """Sporty-mode coast / over-gear recovery. With no throttle and no
+        brake — the state a car is left in after a crash, a spin, or just
+        lifting into a corner — none of the demand-driven downshifts fire, so
+        a too-tall gear would sit there bogging until the driver gets back on
+        the throttle. Step down one gear at a time whenever revs fall below
+        the coast floor, keeping a usable gear ready. Over-rev stays guarded
+        inside :meth:`_shift_down`."""
+        if td.gear <= 1 or td.speed_kmh <= Cfg.MIN_SPEED_KMH:
+            return False
+        if td.throttle > 0.05 or td.brake > 0.05:
+            return False
+        if td.rpm_pct >= coast_rpm:
+            return False
+        if not self._shift_down(td, 400, "COAST DOWN", "engine brake"):
+            return False
+        self._no_upshift_until = now + 0.3
+        return True
+
     def _is_spinning_not_traction(self, td: Telemetry) -> bool:
         if td.rear_slip < 1.2:
             return False
@@ -1280,6 +1318,10 @@ class TCULogic:
         if self._track_power_demand_downshift(
             td, now, min_throttle=power_thr, target_floor=power_floor
         ):
+            return
+
+        coast_rpm = self._config.get("race_coast_rpm", 30) / 100
+        if self._track_coast_downshift(td, now, coast_rpm):
             return
 
         if self._wheelspin_upshift_now(td) and td.speed_kmh > 15.0:
@@ -1464,6 +1506,10 @@ class TCULogic:
         if thr >= 0.40 and td.rpm_pct < down_rpm and td.gear > 1 and td.speed_kmh > 8.0:
             self._shift_down(td, 450, "TORQUE DOWN", "climbing")
             self._no_upshift_until = now + 1.5
+            return
+
+        coast_rpm = self._config.get("offroad_coast_rpm", 32) / 100
+        if self._track_coast_downshift(td, now, coast_rpm):
             return
 
         if self._track_out_of_band_kickdown(td, now):
