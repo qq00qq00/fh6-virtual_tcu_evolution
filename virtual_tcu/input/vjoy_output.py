@@ -27,8 +27,6 @@ def _build_button_map() -> dict[str, int]:
 
 
 class VJoyOutput(OutputInterface):
-    BUTTON_HOLD_S = 0.06
-
     def __init__(self, config: ConfigStore):
         global _BUTTON_MAP
         self._config = config
@@ -118,11 +116,10 @@ class VJoyOutput(OutputInterface):
             if self.use_clutch:
                 self._v_device.set_button(clutch_btn, 1)
             self._v_device.set_button(btn, 1)
-            if self.direct_shift:
-                return
-            time.sleep(self.BUTTON_HOLD_S)
             if self.use_clutch:
                 self._v_device.set_button(clutch_btn, 0)
+            if self.direct_shift:
+                return
             self._v_device.set_button(btn, 0)
         except Exception as e:
             print(f"[VJoy] input simulation failed: {e}")
