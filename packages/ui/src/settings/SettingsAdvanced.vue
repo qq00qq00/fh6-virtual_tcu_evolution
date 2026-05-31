@@ -1,6 +1,10 @@
 <script setup lang="ts">
   import { VIGEMBUS_DRIVER_URL } from '@virtual-tcu/shared/config/links'
   import {
+    VJOY_BUTTON_OPTIONS,
+    VJOY_SHIFT_BUTTON_FIELDS,
+  } from '@virtual-tcu/shared/config/settings'
+  import {
     NAlert,
     NButton,
     NCard,
@@ -10,6 +14,7 @@
     NInput,
     NSelect,
     NSlider,
+    NSwitch,
     NText,
   } from 'naive-ui'
   import { computed, inject, ref } from 'vue'
@@ -37,6 +42,7 @@
     onOpenImport,
     restartBackend,
     configNumber,
+    configBool,
     configText,
     sliderUnit,
   } = ctx
@@ -65,7 +71,7 @@
 
   const outputModeValue = computed(() => {
     const v = (store.config as Record<string, unknown>).output_mode
-    return typeof v === 'string' && (v === 'keyboard' || v === 'gamepad') ? v : 'keyboard'
+    return typeof v === 'string' && (v === 'gamepad' || v === 'vjoy') ? v : 'keyboard'
   })
 
   const outputModeOptionsComputed = computed(() =>
@@ -247,6 +253,67 @@
           </NGridItem>
         </NGrid>
       </template>
+      <template v-if="outputModeValue === 'vjoy'">
+        <NText depth="3" style="font-size: 12px; display: block; margin: 12px 0 8px">
+          {{ t('extras.vjoyHint') }}
+        </NText>
+        <NFlex vertical :size="12">
+          <NFlex justify="space-between" align="center" :size="8">
+            <NText>{{ t('extras.vjoyDirectShift') }}</NText>
+            <NSwitch
+              :value="configBool('vjoy_direct_shift')"
+              @update:value="(v: boolean) => store.setConfig('vjoy_direct_shift', v)"
+            />
+          </NFlex>
+          <NText depth="3" style="font-size: 11px">
+            {{
+              configBool('vjoy_direct_shift')
+                ? t('extras.vjoyDirectShiftOn')
+                : t('extras.vjoyDirectShiftOff')
+            }}
+          </NText>
+          <template v-if="!configBool('vjoy_direct_shift')">
+            <NFlex
+              v-for="g in VJOY_SHIFT_BUTTON_FIELDS"
+              :key="g.key"
+              justify="space-between"
+              align="center"
+              :size="8"
+            >
+              <NText>{{ t(`extras.${g.i18nKey}`) }}</NText>
+              <NSelect
+                :value="configText(g.key) || g.placeholder"
+                :options="VJOY_BUTTON_OPTIONS.map((o) => ({ label: o.label, value: o.value }))"
+                size="small"
+                style="width: 140px"
+                @update:value="(v: string) => store.setConfig(g.key, v)"
+              />
+            </NFlex>
+          </template>
+          <NFlex justify="space-between" align="center" :size="8">
+            <NText>{{ t('extras.vjoyUseClutch') }}</NText>
+            <NSwitch
+              :value="configBool('vjoy_use_clutch')"
+              @update:value="(v: boolean) => store.setConfig('vjoy_use_clutch', v)"
+            />
+          </NFlex>
+          <NFlex
+            v-if="configBool('vjoy_use_clutch')"
+            justify="space-between"
+            align="center"
+            :size="8"
+          >
+            <NText>{{ t('extras.vjoyClutchKey') }}</NText>
+            <NSelect
+              :value="configText('vjoy_clutch_key') || 'B12'"
+              :options="VJOY_BUTTON_OPTIONS.map((o) => ({ label: o.label, value: o.value }))"
+              size="small"
+              style="width: 140px"
+              @update:value="(v: string) => store.setConfig('vjoy_clutch_key', v)"
+            />
+          </NFlex>
+        </NFlex>
+      </template>
       <NFlex :size="8" align="center" style="margin-top: 10px">
         <NButton type="warning" size="small" @click="restartBackend()">
           {{ t('extras.saveAndRestart') }}
@@ -257,7 +324,12 @@
       </NFlex>
     </NCard>
 
-    <NCard :title="t('extras.shiftKeys')" size="small" :bordered="false">
+    <NCard
+      v-if="outputModeValue === 'keyboard'"
+      :title="t('extras.shiftKeys')"
+      size="small"
+      :bordered="false"
+    >
       <NText depth="3" style="font-size: 12px; display: block; margin-bottom: 8px">
         {{ t('extras.shiftKeyHint') }}
       </NText>

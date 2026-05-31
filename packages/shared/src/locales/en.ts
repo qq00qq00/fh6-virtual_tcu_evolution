@@ -151,6 +151,7 @@ export default {
     extras: 'Extras',
   },
   settings: {
+    title: 'Shift Points',
     features: 'Features',
     launchControl: 'Launch Control',
     comfort: 'Comfort',

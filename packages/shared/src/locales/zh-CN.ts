@@ -149,6 +149,7 @@ export default {
     extras: '更多',
   },
   settings: {
+    title: '换挡点',
     features: '功能开关',
     launchControl: '弹射控制',
     comfort: '舒适',
