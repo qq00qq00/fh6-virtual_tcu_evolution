@@ -27,6 +27,10 @@ def _build_button_map() -> dict[str, int]:
 
 
 class VJoyOutput(OutputInterface):
+    # How long a button is held down (seconds). Spans several game input-poll
+    # frames so a zero-length pulse can't slip between polls and be missed.
+    BUTTON_HOLD_S = 0.06
+
     def __init__(self, config: ConfigStore):
         global _BUTTON_MAP
         self._config = config
@@ -110,13 +114,22 @@ class VJoyOutput(OutputInterface):
             print(f"[VJoy] unknown button '{name}' - check config")
             return
         clutch_btn = _BUTTON_MAP.get(self.key_clutch) if self.use_clutch else None
+        if self.use_clutch and clutch_btn is None:
+            print(f"[VJoy] unknown clutch button '{self.key_clutch}' - shifting without clutch")
+        use_clutch = self.use_clutch and clutch_btn is not None
         try:
             if self.direct_shift:
                 self._v_device.reset_buttons()
-            if self.use_clutch:
+            if use_clutch:
                 self._v_device.set_button(clutch_btn, 1)
             self._v_device.set_button(btn, 1)
-            if self.use_clutch:
+            # Hold the press across several game input-poll frames before any
+            # release, so a zero-length pulse can't slip between polls and be
+            # missed. In direct mode with no clutch the gear button stays held
+            # (no release follows), so the hold is skipped there.
+            if use_clutch or not self.direct_shift:
+                time.sleep(self.BUTTON_HOLD_S)
+            if use_clutch:
                 self._v_device.set_button(clutch_btn, 0)
             if self.direct_shift:
                 return
