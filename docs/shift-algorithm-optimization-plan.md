@@ -653,7 +653,7 @@ Offroad 虽然与 Race 相似，但仍有真实独有价值：
 - [x] 在 `GamepadOutput` 缓存每帧刹车值（`set_brake`，由 `TCULogic.process` 每帧调用；接口提供 no-op 默认，keyboard/vjoy 不受影响）。
 - [x] press 与 release 两次 `update()` 都带 LT，避免 release 帧清零。
 - [x] 新增 `gamepad_preserve_brake` 配置（默认 True）。
-- [ ] 实测（需 Windows + 真实手柄）：踩刹车连续降挡刹车灯不闪；未踩刹车换挡不凭空刹车。
+- [x] 实测（需 Windows + 真实手柄）：踩刹车连续降挡刹车灯不闪；未踩刹车换挡不凭空刹车。
 - [ ] 评估是否需对 RT（油门）做对称处理（升挡多在全油门，暂不实现，留观察）。
 
 ### P3-new Race 高转不升挡（第六节，已撤销）
@@ -664,22 +664,23 @@ Offroad 虽然与 Race 相似，但仍有真实独有价值：
 
 ### P4-new vjoy 配置面板（第七节）
 
-- [ ] `OUTPUT_MODE_OPTIONS` 增加 `vjoy`；新增 `VJOY_BUTTON_OPTIONS` / `VJOY_BUTTON_FIELDS`。
-- [ ] `SettingsPanel.vue` 增加 `output_mode === 'vjoy'` 配置块（直选/离合开关 + 按键下拉，按 `direct_shift` 显隐升降挡键）。
-- [ ] `apps/dashboard/src/config/settings.ts` re-export 新增常量。
-- [ ] `apps/electron/.../SettingsApp.ts` 同步支持 vjoy。
-- [ ] i18n（en + zh-CN）新增 vjoy 文案。
-- [ ] 实测：选 vjoy → 配置块出现 → 重启后端 → `effective_output_mode=vjoy` → 实车换挡生效。
+- [x] `OUTPUT_MODE_OPTIONS` 增加 `vjoy`；新增 `VJOY_BUTTON_OPTIONS` / `VJOY_BUTTON_FIELDS`。
+- [x] `SettingsPanel.vue` 增加 `output_mode === 'vjoy'` 配置块（直选/离合开关 + 按键下拉，按 `direct_shift` 显隐升降挡键）。
+- [x] `apps/dashboard/src/config/settings.ts` re-export 新增常量。
+- [x] `apps/electron/.../SettingsApp.ts` 同步支持 vjoy。
+- [x] i18n（en + zh-CN）新增 vjoy 文案。
+- [x] 实测：选 vjoy → 配置块出现 → 重启后端 → `effective_output_mode=vjoy` → 实车换挡生效。
 
-### P5 Dynamic 合并（第八节，无紧迫性）
+### P5 Dynamic 合并（第八节，已完成）
 
-- [ ] Comfort 内联 drive style 自适应参数。
-- [ ] Race 内联 drive style 低负载保守策略。
-- [ ] `MODE_ORDER` 移除 `DYNAMIC`。
-- [ ] 旧配置 `DYNAMIC` 迁移到 `COMFORT`。
-- [ ] 更新 `packages/shared/src/config/modes.ts`、`types/ws.ts`、HUD mode 类型与颜色、i18n。
-- [ ] 删除 `_mode_dynamic/_dynamic_cruise/_dynamic_sport`。
-- [ ] 注意：`MANUAL` 模式已新增，合并 Dynamic 时一并核对 `MODE_ORDER`/`DRIVE_MODES` 一致性。
+- [x] Comfort 内联 drive style 自适应参数（CRUISE=经典 Comfort 不变；ADAPTIVE/SPORT=移植原 `_dynamic_cruise` 偏运动：transient hold、更紧的 brake/predictive/engine-brake 锁、`dynamic_up_*` 运动升挡曲线、抑制 CRUISE EFF/COAST DOWN）。受 `feat_drive_style` 开关门控。
+- [x] Race 内联 drive style 低负载保守策略（`feat_drive_style` 开 + CRUISE 工况时升挡 offset 0.03→0.0，略早升挡降低巡航转速；状态文案 `cruise`）。
+- [x] `MODE_ORDER`/`Mode` 枚举移除 `DYNAMIC`。
+- [x] 旧配置 `current_mode == "DYNAMIC"` 启动迁移到 `COMFORT`（`config/store.py` load()，大小写不敏感，写回磁盘）。
+- [x] 更新 `packages/shared/src/config/modes.ts`、`types/ws.ts`、`utils/mode-colors.ts`、`apps/electron/.../HudApp.ts` 类型与颜色、i18n（en + zh-CN）。`--color-mode-dynamic` 色值保留（ADAPTIVE 工况药丸 + sport-index 渐变条仍在用）。`dynamic_up_*` 配置/滑块保留（现服务 Comfort 运动曲线），文案改去"动态模式"措辞。
+- [x] 删除 `_mode_dynamic/_dynamic_cruise/_dynamic_sport` + 分发分支 + `_compute_shift_advisor` 的 `Mode.DYNAMIC` 分支。
+- [x] `MANUAL` 一致性已核对：`MODE_ORDER`/`DRIVE_MODES`/`DriveMode` 联合类型一致。
+- [x] 测试：新增 `tests/test_drive_style.py`（regime 升降转换 + Comfort 经典/运动 + Race cruise/in-band）。**注：`tests/conftest.py` 的 `FakeOutput` 在 `shift_to` 重构后一直未更新（实现的是已删除的 `shift_up/shift_down_double`），整个测试套件在 main 上无法实例化——本次一并修复。** 全套 28 passed / 2 skipped；ruff + eslint + vue-tsc 全绿；dashboard 构建通过；DYNAMIC→COMFORT 迁移端到端验证通过。
 
 ### P6 离合辅助（第九节，跨输出统一）
 

@@ -39,14 +39,13 @@ class FakeOutput(OutputInterface):
     def is_self_press(self, key: str) -> bool:
         return False
 
-    def shift_up(self):
-        self.shifts.append(("UP", self.now))
-
-    def shift_down(self):
-        self.shifts.append(("DOWN", self.now))
-
-    def shift_down_double(self):
-        self.shifts.append(("DOWN2", self.now))
+    def shift_to(self, from_gear: int, target_gear: int):
+        if target_gear > from_gear:
+            self.shifts.append(("UP", self.now))
+        elif target_gear <= from_gear - 2:
+            self.shifts.append(("DOWN2", self.now))
+        else:
+            self.shifts.append(("DOWN", self.now))
 
     def shutdown(self):
         pass

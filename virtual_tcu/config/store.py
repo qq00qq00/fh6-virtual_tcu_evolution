@@ -54,6 +54,10 @@ class ConfigStore:
                 print(f"[Config] invalid udp_port {udp_port}, using default")
                 self.data["udp_port"] = DEFAULTS["udp_port"]
                 new_keys_added = True
+            if str(self.data.get("current_mode", "")).upper() == "DYNAMIC":
+                print("[Config] DYNAMIC mode removed, migrating current_mode to COMFORT")
+                self.data["current_mode"] = "COMFORT"
+                new_keys_added = True
             if new_keys_added:
                 self.save()
                 print("[Config] new settings added - file updated")
