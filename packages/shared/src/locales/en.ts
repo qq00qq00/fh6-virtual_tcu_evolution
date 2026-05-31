@@ -263,10 +263,21 @@ export default {
     outputModeHint: 'Choose how the TCU sends shift commands to the game.',
     outputModeKeyboard: 'Keyboard (E / Q)',
     outputModeGamepad: 'Gamepad (virtual XInput)',
+    outputModeVjoy: 'vJoy (racing wheel / DirectInput)',
     outputModeRestart: 'Changing output mode requires a backend restart to take effect.',
     gamepadButtonHint: 'Gamepad button mapping (default: A=upshift, X=downshift).',
     gamepadShiftUp: 'Upshift button',
     gamepadShiftDown: 'Downshift button',
+    vjoyHint:
+      'vJoy sends shifts as a virtual DirectInput device, so a force-feedback wheel keeps working. Requires the vJoy driver installed and device #1 enabled.',
+    vjoyDirectShift: 'Direct gear select',
+    vjoyDirectShiftOn:
+      'Each gear maps to a button (B1–B10, B11 = reverse) and stays held — for H-pattern / sequential boxes bound to absolute gears in-game.',
+    vjoyDirectShiftOff: 'Sequential mode: pulse the up/down buttons below, one press per gear.',
+    vjoyUseClutch: 'Press clutch on shift',
+    vjoyClutchKey: 'Clutch button',
+    vjoyShiftUp: 'Upshift button',
+    vjoyShiftDown: 'Downshift button',
     saveAndRestart: 'Save & Restart Backend',
     gamepadCheckFailed: 'ViGEmBus driver not found',
     gamepadCheckFailedHint:

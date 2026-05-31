@@ -12,6 +12,8 @@
     OUTPUT_MODE_OPTIONS,
     SETTING_GROUPS,
     SHIFT_KEY_FIELDS,
+    VJOY_BUTTON_OPTIONS,
+    VJOY_SHIFT_BUTTON_FIELDS,
   } from '@/config/settings'
   import { useNetworkSettings } from './network-settings'
 
@@ -405,6 +407,71 @@
                   </NFlex>
                 </NFlex>
               </template>
+              <template v-if="(($props.config as any).output_mode || 'keyboard') === 'vjoy'">
+                <NText depth="3" style="font-size: 12px; display: block; margin: 12px 0 8px">
+                  {{ $t('extras.vjoyHint') }}
+                </NText>
+                <NFlex vertical :size="12">
+                  <NFlex justify="space-between" align="center" :size="8">
+                    <NText>{{ $t('extras.vjoyDirectShift') }}</NText>
+                    <NSwitch
+                      :value="configBool('vjoy_direct_shift')"
+                      @update:value="emit('setConfig', 'vjoy_direct_shift', $event)"
+                    />
+                  </NFlex>
+                  <NText depth="3" style="font-size: 11px">
+                    {{
+                      configBool('vjoy_direct_shift')
+                        ? $t('extras.vjoyDirectShiftOn')
+                        : $t('extras.vjoyDirectShiftOff')
+                    }}
+                  </NText>
+                  <template v-if="!configBool('vjoy_direct_shift')">
+                    <NFlex
+                      v-for="g in VJOY_SHIFT_BUTTON_FIELDS"
+                      :key="g.key"
+                      justify="space-between"
+                      align="center"
+                      :size="8"
+                    >
+                      <NText>{{ $t(`extras.${g.i18nKey}`) }}</NText>
+                      <NSelect
+                        :value="configText(g.key) || g.placeholder"
+                        :options="
+                          VJOY_BUTTON_OPTIONS.map((o) => ({ label: o.label, value: o.value }))
+                        "
+                        size="small"
+                        style="width: 140px"
+                        @update:value="emit('setConfig', g.key, $event)"
+                      />
+                    </NFlex>
+                  </template>
+                  <NFlex justify="space-between" align="center" :size="8">
+                    <NText>{{ $t('extras.vjoyUseClutch') }}</NText>
+                    <NSwitch
+                      :value="configBool('vjoy_use_clutch')"
+                      @update:value="emit('setConfig', 'vjoy_use_clutch', $event)"
+                    />
+                  </NFlex>
+                  <NFlex
+                    v-if="configBool('vjoy_use_clutch')"
+                    justify="space-between"
+                    align="center"
+                    :size="8"
+                  >
+                    <NText>{{ $t('extras.vjoyClutchKey') }}</NText>
+                    <NSelect
+                      :value="configText('vjoy_clutch_key') || 'B12'"
+                      :options="
+                        VJOY_BUTTON_OPTIONS.map((o) => ({ label: o.label, value: o.value }))
+                      "
+                      size="small"
+                      style="width: 140px"
+                      @update:value="emit('setConfig', 'vjoy_clutch_key', $event)"
+                    />
+                  </NFlex>
+                </NFlex>
+              </template>
               <NFlex :size="8" align="center" style="margin-top: 10px">
                 <NButton type="warning" size="small" @click="emit('restartBackend')">
                   {{ $t('extras.saveAndRestart') }}
@@ -415,7 +482,12 @@
               </NFlex>
             </NCard>
 
-            <NCard :title="$t('extras.shiftKeys')" size="small" :bordered="false">
+            <NCard
+              v-if="(($props.config as any).output_mode || 'keyboard') === 'keyboard'"
+              :title="$t('extras.shiftKeys')"
+              size="small"
+              :bordered="false"
+            >
               <NText depth="3" style="font-size: 12px; display: block; margin-bottom: 8px">
                 {{ $t('extras.shiftKeyHint') }}
               </NText>

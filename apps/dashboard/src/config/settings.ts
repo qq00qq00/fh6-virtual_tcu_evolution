@@ -8,5 +8,7 @@ export {
   SETTING_GROUPS,
   SETTING_SLIDERS,
   SHIFT_KEY_FIELDS,
+  VJOY_BUTTON_OPTIONS,
+  VJOY_SHIFT_BUTTON_FIELDS,
 } from '@virtual-tcu/shared/config/settings'
 export type { FeatureToggle, SliderDef } from '@virtual-tcu/shared/config/settings'

@@ -259,10 +259,21 @@ export default {
     outputModeHint: '选择 TCU 向游戏发送换挡指令的方式。',
     outputModeKeyboard: '键盘 (E / Q)',
     outputModeGamepad: '手柄 (虚拟 XInput)',
+    outputModeVjoy: 'vJoy (方向盘 / DirectInput)',
     outputModeRestart: '切换输出模式后需重启后端才能生效。',
     gamepadButtonHint: '手柄按钮映射（默认：A=升挡，X=降挡）。',
     gamepadShiftUp: '升挡按钮',
     gamepadShiftDown: '降挡按钮',
+    vjoyHint:
+      'vJoy 以虚拟 DirectInput 设备发送换挡，力反馈方向盘不会被打断。需安装 vJoy 驱动并启用 1 号设备。',
+    vjoyDirectShift: '挡位直选',
+    vjoyDirectShiftOn:
+      '每个挡位对应一个按钮（B1–B10，B11=倒挡）并保持按住——适用于游戏内绑定绝对挡位的 H 挡 / 排挡。',
+    vjoyDirectShiftOff: '顺序模式：脉冲下方升/降挡按钮，每挡一次。',
+    vjoyUseClutch: '换挡时按离合',
+    vjoyClutchKey: '离合按钮',
+    vjoyShiftUp: '升挡按钮',
+    vjoyShiftDown: '降挡按钮',
     saveAndRestart: '保存并重启后端',
     gamepadCheckFailed: '未检测到 ViGEmBus 驱动',
     gamepadCheckFailedHint:

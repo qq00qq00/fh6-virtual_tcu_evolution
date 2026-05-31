@@ -93,6 +93,7 @@ export const NETWORK_FIELDS = [
 export const OUTPUT_MODE_OPTIONS = [
   { value: 'keyboard', i18nKey: 'outputModeKeyboard' },
   { value: 'gamepad', i18nKey: 'outputModeGamepad' },
+  { value: 'vjoy', i18nKey: 'outputModeVjoy' },
 ] as const
 
 export const GAMEPAD_BUTTON_OPTIONS = [
@@ -111,6 +112,20 @@ export const GAMEPAD_BUTTON_OPTIONS = [
 export const GAMEPAD_BUTTON_FIELDS = [
   { key: 'gamepad_shift_up', i18nKey: 'gamepadShiftUp', placeholder: 'B' },
   { key: 'gamepad_shift_down', i18nKey: 'gamepadShiftDown', placeholder: 'X' },
+] as const
+
+// vJoy buttons B1–B14 map 1:1 to the device buttons in virtual_tcu/input/vjoy_output.py.
+// In direct-shift mode the gear is selected by B1–B10 (B11 = reverse) directly from the
+// target gear, so the up/down keys below only apply in sequential mode.
+export const VJOY_BUTTON_OPTIONS = Array.from({ length: 14 }, (_, i) => ({
+  value: `B${i + 1}`,
+  label: `B${i + 1}`,
+})) as readonly { value: string; label: string }[]
+
+// Sequential-mode shift buttons (only used when vjoy_direct_shift is off).
+export const VJOY_SHIFT_BUTTON_FIELDS = [
+  { key: 'vjoy_shift_key_up', i18nKey: 'vjoyShiftUp', placeholder: 'B13' },
+  { key: 'vjoy_shift_key_down', i18nKey: 'vjoyShiftDown', placeholder: 'B14' },
 ] as const
 
 export const SETTING_GROUPS: { i18nKey: string; keys: string[]; hintKey?: string }[] = [
