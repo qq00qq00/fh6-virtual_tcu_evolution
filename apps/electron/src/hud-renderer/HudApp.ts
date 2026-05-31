@@ -1,6 +1,6 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-type DriveMode = 'COMFORT' | 'DYNAMIC' | 'RACE' | 'DRIFT' | 'OFFROAD' | 'MANUAL'
+type DriveMode = 'COMFORT' | 'RACE' | 'DRIFT' | 'OFFROAD' | 'MANUAL'
 
 interface TelemetrySnapshot {
   gear?: number
@@ -44,8 +44,6 @@ export function useHudApp() {
     switch (mode.value) {
       case 'COMFORT':
         return '#0891b2'
-      case 'DYNAMIC':
-        return '#65a30d'
       case 'RACE':
         return '#e11d48'
       case 'DRIFT':

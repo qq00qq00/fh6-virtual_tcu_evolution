@@ -552,8 +552,6 @@ class TCULogic:
         m = self.mode
         if m == Mode.COMFORT:
             self._mode_comfort(td, now)
-        elif m == Mode.DYNAMIC:
-            self._mode_dynamic(td, now)
         elif m == Mode.RACE:
             self._mode_race(td, now)
         elif m == Mode.DRIFT:
@@ -962,10 +960,6 @@ class TCULogic:
             up_pct = self._power_curve.optimal_upshift_rpm(
                 td, fallback=self._config.get("race_up_wot", 94) / 100, offset=0.03
             )
-        elif base_mode == Mode.DYNAMIC:
-            up_pct = self._power_curve.optimal_upshift_rpm(
-                td, fallback=self._config.get("dynamic_up_wot", 82) / 100, offset=0.05
-            )
         elif base_mode == Mode.OFFROAD:
             up_pct = self._power_curve.optimal_upshift_rpm(
                 td, fallback=self._config.get("offroad_up_wot", 90) / 100, offset=0.07
@@ -1195,7 +1189,11 @@ class TCULogic:
 
     def _mode_comfort(self, td: Telemetry, now: float):
         thr = td.throttle
-        brake_thr = self._config.get("brake_thr", 35) / 100
+        sporty = self._config.get("feat_drive_style") and self._drive_style.regime in (
+            "ADAPTIVE",
+            "SPORT",
+        )
+        brake_thr = self._config.get("brake_thr", 35) / 100 * (0.9 if sporty else 1.0)
         kd_pedal = self._config.get("kickdown_pedal", 78) / 100
         kd_rpm = self._config.get("kickdown_rpm", 50) / 100
         coast_rpm = self._config.get("coast_down_rpm", 28) / 100
@@ -1209,32 +1207,45 @@ class TCULogic:
             self._shift_down(td, 350, "ANTI-STALL", "engine save")
             return
 
-        if self._should_brake_downshift(td, brake_thr) and td.gear > 1 and td.speed_kmh > 35.0:
+        if sporty:
+            blocker = self._blocked_by_transient()
+            if blocker is not None:
+                self._tcu_state = blocker
+                self._tcu_state_sub = "adaptive — hold"
+                return
+
+        brake_spd = 30.0 if sporty else 35.0
+        if self._should_brake_downshift(td, brake_thr) and td.gear > 1 and td.speed_kmh > brake_spd:
             self._shift_down(
                 td,
-                300,
+                280 if sporty else 300,
                 "BRAKE DOWN",
-                "panic brake" if self._config.get("feat_brake_curve") else "",
+                "" if sporty else ("panic brake" if self._config.get("feat_brake_curve") else ""),
             )
-            self._no_upshift_until = now + 1.0
+            self._no_upshift_until = now + (0.8 if sporty else 1.0)
             return
 
         ramp = self._throttle_ramp_up()
         if (
-            ramp > 0.50
-            and thr > 0.80
-            and td.rpm_pct < 0.65
-            and td.gear > 2
-            and td.speed_kmh > 40.0
+            ramp > (0.40 if sporty else 0.50)
+            and thr > (0.70 if sporty else 0.80)
+            and td.rpm_pct < (0.70 if sporty else 0.65)
+            and td.gear > (1 if sporty else 2)
+            and td.speed_kmh > (30.0 if sporty else 40.0)
             and now >= self._no_predictive_until
         ):
-            self._shift_down(td, 450, "PREDICTIVE", "hard accel")
-            self._no_upshift_until = now + 1.2
+            self._shift_down(
+                td,
+                400 if sporty else 450,
+                "PREDICTIVE",
+                "stomp" if sporty else "hard accel",
+            )
+            self._no_upshift_until = now + (1.0 if sporty else 1.2)
             return
 
         kd_thr = self._kickdown_pedal_threshold(td, kd_pedal)
         if thr >= kd_thr and td.rpm_pct < kd_rpm and td.gear > 2:
-            self._shift_down(td, 500, "KICKDOWN", "demand power")
+            self._shift_down(td, 500, "KICKDOWN", "" if sporty else "demand power")
             self._no_upshift_until = now + 1.5
             return
 
@@ -1243,8 +1254,8 @@ class TCULogic:
             return
 
         if self._should_engine_brake(td):
-            self._shift_down(td, 600, "ENGINE BRAKE", "descent")
-            self._no_upshift_until = now + 2.0
+            self._shift_down(td, 500 if sporty else 600, "ENGINE BRAKE", "descent")
+            self._no_upshift_until = now + (1.5 if sporty else 2.0)
             return
 
         if (
@@ -1253,18 +1264,27 @@ class TCULogic:
             and now >= self._no_upshift_until
             and not self._turbo_lag_block_upshift(td)
         ):
-            up_pct = self._curve(
-                thr,
-                self._config.get("comfort_up_idle", 40) / 100,
-                self._config.get("comfort_up_mid", 58) / 100,
-                self._config.get("comfort_up_wot", 82) / 100,
-            )
+            if sporty:
+                up_pct = self._curve(
+                    thr,
+                    self._config.get("dynamic_up_idle", 42) / 100,
+                    self._config.get("dynamic_up_mid", 58) / 100,
+                    self._config.get("dynamic_up_wot", 82) / 100,
+                )
+            else:
+                up_pct = self._curve(
+                    thr,
+                    self._config.get("comfort_up_idle", 40) / 100,
+                    self._config.get("comfort_up_mid", 58) / 100,
+                    self._config.get("comfort_up_wot", 82) / 100,
+                )
             if td.rpm_pct >= up_pct:
-                self._shift_up(td, 350, "UPSHIFT", "accelerating")
+                self._shift_up(td, 350, "UPSHIFT", "cruise" if sporty else "accelerating")
                 return
 
         if (
-            thr > 0.05
+            not sporty
+            and thr > 0.05
             and thr < 0.55
             and td.brake < 0.05
             and td.gear >= 3
@@ -1276,7 +1296,8 @@ class TCULogic:
             return
 
         if (
-            thr < 0.05
+            not sporty
+            and thr < 0.05
             and td.brake < 0.05
             and td.rpm_pct < coast_rpm
             and td.gear > 1
@@ -1287,7 +1308,7 @@ class TCULogic:
             return
 
         self._tcu_state = "CRUISING"
-        self._tcu_state_sub = ""
+        self._tcu_state_sub = "adaptive" if sporty else ""
 
     def _mode_race(self, td: Telemetry, now: float):
         thr = td.throttle
@@ -1335,123 +1356,13 @@ class TCULogic:
         if self._track_out_of_band_kickdown(td, now, climb_only=True):
             return
 
-        if self._track_upshift_in_band(td, now, offset=0.03, downshift_lock_s=0.5):
+        cruise_quiet = self._config.get("feat_drive_style") and self._drive_style.regime == "CRUISE"
+        up_offset = 0.0 if cruise_quiet else 0.03
+        if self._track_upshift_in_band(td, now, offset=up_offset, downshift_lock_s=0.5):
             return
 
         self._tcu_state = "RACE"
-        self._tcu_state_sub = "in band"
-
-    def _mode_dynamic(self, td: Telemetry, now: float):
-        if (
-            td.current_rpm < Cfg.ANTI_STALL_RPM
-            and td.gear > 1
-            and td.throttle < 0.10
-            and td.speed_kmh < 20.0
-        ):
-            self._shift_down(td, 350, "ANTI-STALL")
-            return
-
-        regime = self._drive_style.regime
-        if regime == "SPORT":
-            self._dynamic_sport(td, now)
-        else:
-            self._dynamic_cruise(td, now, adaptive=(regime == "ADAPTIVE"))
-
-    def _dynamic_sport(self, td: Telemetry, now: float):
-        brake_thr = self._config.get("brake_thr", 35) / 100 * 0.7
-        blocker = self._blocked_by_transient()
-        if blocker is not None:
-            self._tcu_state = blocker
-            self._tcu_state_sub = "sport — hold"
-            return
-
-        if self._track_brake_down(td, now, brake_thr, lock_ms=280):
-            return
-        if self._wheelspin_upshift_now(td) and td.speed_kmh > 15.0:
-            self._shift_up(td, 400, "WHEELSPIN", "traction save")
-            return
-        if self._track_out_of_band_kickdown(td, now, climb_only=True):
-            return
-        if self._track_upshift_in_band(td, now, offset=0.05):
-            return
-        self._tcu_state = "DYNAMIC"
-        self._tcu_state_sub = "sport — in band"
-
-    def _dynamic_cruise(self, td: Telemetry, now: float, adaptive: bool):
-        thr = td.throttle
-        brake_thr = self._config.get("brake_thr", 35) / 100 * 0.9
-        kd_pedal = self._config.get("kickdown_pedal", 78) / 100
-        kd_rpm = self._config.get("kickdown_rpm", 50) / 100
-
-        if adaptive:
-            blocker = self._blocked_by_transient()
-            if blocker is not None:
-                self._tcu_state = blocker
-                self._tcu_state_sub = "adaptive — hold"
-                return
-
-        if self._should_brake_downshift(td, brake_thr) and td.gear > 1 and td.speed_kmh > 30.0:
-            self._shift_down(td, 280, "BRAKE DOWN")
-            self._no_upshift_until = now + 0.8
-            return
-
-        ramp = self._throttle_ramp_up()
-        if (
-            ramp > 0.40
-            and thr > 0.70
-            and td.rpm_pct < 0.70
-            and td.gear > 1
-            and td.speed_kmh > 30.0
-            and now >= self._no_predictive_until
-        ):
-            self._shift_down(td, 400, "PREDICTIVE", "stomp")
-            self._no_upshift_until = now + 1.0
-            return
-
-        kd_thr = self._kickdown_pedal_threshold(td, kd_pedal)
-        if thr >= kd_thr and td.rpm_pct < kd_rpm and td.gear > 2:
-            self._shift_down(td, 500, "KICKDOWN")
-            self._no_upshift_until = now + 1.5
-            return
-
-        if self._wheelspin_upshift_now(td) and td.speed_kmh > 15.0:
-            self._shift_up(td, 400, "WHEELSPIN", "traction save")
-            return
-
-        if self._should_engine_brake(td):
-            self._shift_down(td, 500, "ENGINE BRAKE", "descent")
-            self._no_upshift_until = now + 1.5
-            return
-
-        if (
-            thr > 0.20
-            and td.brake < 0.05
-            and now >= self._no_upshift_until
-            and not self._turbo_lag_block_upshift(td)
-        ):
-            up_pct = self._curve(
-                thr,
-                self._config.get("dynamic_up_idle", 42) / 100,
-                self._config.get("dynamic_up_mid", 58) / 100,
-                self._config.get("dynamic_up_wot", 82) / 100,
-            )
-            if td.rpm_pct >= up_pct:
-                self._shift_up(td, 350, "UPSHIFT", "cruise")
-                return
-
-        if (
-            not adaptive
-            and thr < 0.05
-            and td.brake < 0.05
-            and td.rpm_pct < 0.28
-            and td.gear > 1
-            and td.speed_kmh > 50.0
-            and abs(td.ang_vel_z) < 0.20
-        ):
-            self._shift_down(td, 400, "COAST DOWN")
-            return
-        self._tcu_state = "CRUISING"
-        self._tcu_state_sub = "adaptive" if adaptive else "relaxed"
+        self._tcu_state_sub = "cruise" if cruise_quiet else "in band"
 
     def _mode_drift(self, td: Telemetry, now: float):
         if td.speed_kmh < 30.0:
