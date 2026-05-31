@@ -163,10 +163,13 @@ class GamepadOutput(OutputInterface):
         shifts_needed = abs(target_gear - from_gear)
 
         def _multi_shift():
-            for i in range(shifts_needed):
-                self._press_release(self.key_up if target_gear > from_gear else self.key_down)
-                if i < shifts_needed - 1:
-                    time.sleep(0.06)
+            try:
+                for i in range(shifts_needed):
+                    self._press_release(self.key_up if target_gear > from_gear else self.key_down)
+                    if i < shifts_needed - 1:
+                        time.sleep(0.06)
+            finally:
+                self._release_brake()
 
         self._executor.submit(_multi_shift)
 
@@ -208,3 +211,22 @@ class GamepadOutput(OutputInterface):
         with self._brake_lock:
             brake = self._brake
         self._gamepad.left_trigger(value=int(brake * 255))
+
+    def _release_brake(self) -> None:
+        """Zero the virtual LT once the shift sequence is done.
+
+        ``set_brake`` only caches the brake; the value reaches the device
+        solely through a shift's ``update()``. So a shift that mirrored a
+        nonzero brake would leave the virtual LT latched at that value with
+        no later ``update()`` to clear it — the game would keep reading a
+        phantom brake until the next shift. Reset to 0 so the virtual device
+        asserts no brake at rest and the physical controller's brake takes
+        over again (its pre-mirror resting state).
+        """
+        if not self._preserve_brake:
+            return
+        try:
+            self._gamepad.left_trigger(value=0)
+            self._gamepad.update()
+        except Exception as e:
+            print(f"[Gamepad] brake reset failed: {e}")
