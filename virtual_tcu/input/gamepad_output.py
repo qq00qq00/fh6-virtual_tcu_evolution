@@ -7,6 +7,7 @@ prompt).  Only Windows is supported in production.
 
 import time
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 
 from virtual_tcu.config.store import ConfigStore
 from virtual_tcu.input.interface import OutputInterface
@@ -107,6 +108,12 @@ class GamepadOutput(OutputInterface):
         self._config = config
         self._vg = vg
 
+        # Mirror the physical brake onto the virtual LT during shifts so the
+        # injected state packet does not momentarily zero the player's brake.
+        self._preserve_brake = bool(config.get("gamepad_preserve_brake", True))
+        self._brake = 0.0
+        self._brake_lock = Lock()
+
         try:
             self._gamepad = vg.VX360Gamepad()
         except Exception as e:
@@ -141,6 +148,10 @@ class GamepadOutput(OutputInterface):
         # injects buttons, the game reads them, no paddle listener conflict.
         return False
 
+    def set_brake(self, brake: float) -> None:
+        with self._brake_lock:
+            self._brake = max(0.0, min(1.0, brake))
+
     def shift_to(self, from_gear: int, target_gear: int):
         # from_gear and target_gear must be 0-10
         if not (0 <= from_gear <= 10) or not (0 <= target_gear <= 10):
@@ -152,10 +163,13 @@ class GamepadOutput(OutputInterface):
         shifts_needed = abs(target_gear - from_gear)
 
         def _multi_shift():
-            for i in range(shifts_needed):
-                self._press_release(self.key_up if target_gear > from_gear else self.key_down)
-                if i < shifts_needed - 1:
-                    time.sleep(0.06)
+            try:
+                for i in range(shifts_needed):
+                    self._press_release(self.key_up if target_gear > from_gear else self.key_down)
+                    if i < shifts_needed - 1:
+                        time.sleep(0.06)
+            finally:
+                self._release_brake()
 
         self._executor.submit(_multi_shift)
 
@@ -176,10 +190,43 @@ class GamepadOutput(OutputInterface):
             print(f"[Gamepad] unknown button '{name}' - check config")
             return
         try:
+            self._apply_brake()
             self._gamepad.press_button(button=btn)
             self._gamepad.update()
             time.sleep(self.BUTTON_HOLD_S)
+            self._apply_brake()
             self._gamepad.release_button(button=btn)
             self._gamepad.update()
         except Exception as e:
             print(f"[Gamepad] input simulation failed: {e}")
+
+    def _apply_brake(self) -> None:
+        """Mirror the cached physical brake onto the virtual LT.
+
+        Must run before each update() — the state packet carries LT, so a
+        stale 0 would override the player's real brake for that frame.
+        """
+        if not self._preserve_brake:
+            return
+        with self._brake_lock:
+            brake = self._brake
+        self._gamepad.left_trigger(value=int(brake * 255))
+
+    def _release_brake(self) -> None:
+        """Zero the virtual LT once the shift sequence is done.
+
+        ``set_brake`` only caches the brake; the value reaches the device
+        solely through a shift's ``update()``. So a shift that mirrored a
+        nonzero brake would leave the virtual LT latched at that value with
+        no later ``update()`` to clear it — the game would keep reading a
+        phantom brake until the next shift. Reset to 0 so the virtual device
+        asserts no brake at rest and the physical controller's brake takes
+        over again (its pre-mirror resting state).
+        """
+        if not self._preserve_brake:
+            return
+        try:
+            self._gamepad.left_trigger(value=0)
+            self._gamepad.update()
+        except Exception as e:
+            print(f"[Gamepad] brake reset failed: {e}")

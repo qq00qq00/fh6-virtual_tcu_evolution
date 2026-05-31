@@ -37,6 +37,15 @@ class OutputInterface(ABC):
         """Trigger a shift to the specified gear (non-blocking)."""
         ...
 
+    def set_brake(self, brake: float) -> None:  # noqa: B027
+        """Report the current physical brake position (0.0-1.0).
+
+        Outputs that emit a full device-state packet on every action (the
+        virtual gamepad) can mirror this onto their brake axis so injecting a
+        shift does not momentarily zero the player's real brake input.
+        Default: no-op — keyboard and vjoy do not share an XInput state
+        packet with the physical controller."""
+
     @abstractmethod
     def shutdown(self):
         """Release any OS resources (thread pools, device handles, hooks)."""

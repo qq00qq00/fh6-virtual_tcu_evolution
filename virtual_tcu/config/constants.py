@@ -75,6 +75,7 @@ DEFAULTS = {
     "output_mode": "keyboard",
     "gamepad_shift_up": "B",
     "gamepad_shift_down": "X",
+    "gamepad_preserve_brake": True,
     "current_mode": "COMFORT",
     "web_host": "127.0.0.1",
     "web_port": 8765,

@@ -392,6 +392,10 @@ class TCULogic:
         if td.brake > 0.50:
             self._last_hard_brake_time = now
 
+        # Let the output mirror the physical brake (gamepad LT preservation);
+        # no-op for keyboard/vjoy.
+        self._kb.set_brake(td.brake)
+
         if td.current_rpm > self._peak_rpm:
             self._peak_rpm = td.current_rpm
 
