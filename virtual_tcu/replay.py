@@ -16,6 +16,95 @@ from virtual_tcu.telemetry.parser import parse_fh6_packet
 from virtual_tcu.telemetry.replay_reader import iter_replay_records
 
 
+def analyze_shift_latency(paths: list[Path], out: TextIO) -> None:
+    import statistics
+
+    from virtual_tcu.config.store import ConfigStore
+    from virtual_tcu.input.interface import OutputInterface
+    from virtual_tcu.logic.tcu import TCULogic
+    from virtual_tcu.storage.profiles import ProfileStore
+    from virtual_tcu.telemetry.logger import TelemetryLogger
+
+    class MockOutput(OutputInterface):
+        def __init__(self, clock: MockClock):
+            self._clock = clock
+            self.last_shift_time: float | None = None
+
+        @property
+        def key_up(self) -> str: return "e"
+
+        @property
+        def key_down(self) -> str: return "q"
+
+        def is_self_press(self, key: str) -> bool: return False
+
+        def shift_to(self, from_gear: int, target_gear: int):
+            # Record time in the same clock domain as rel_ms/clock.now.
+            self.last_shift_time = self._clock.now
+
+        def shutdown(self): pass
+
+    class MockClock:
+        def __init__(self):
+            self.now = 0.0
+        def __call__(self):
+            return self.now
+
+    if not paths:
+        return
+
+    out.write("\n=== Shift Latency A/B Analysis ===\n")
+    for path in paths:
+        cfg = ConfigStore(path="dummy.json")
+        prof = ProfileStore(path="dummy.json")
+        clock = MockClock()
+        mock_out = MockOutput(clock)
+        tcu = TCULogic(mock_out, prof, cfg, TelemetryLogger())
+
+        import virtual_tcu.logic.tcu
+        original_time = virtual_tcu.logic.tcu.time.time
+        virtual_tcu.logic.tcu.time.time = clock
+        latencies = []
+        pending_shift_time = None
+        prev_gear = None
+
+        try:
+            for rel_ms, raw in iter_replay_records(path):
+                t = parse_fh6_packet(raw)
+                if t is None:
+                    continue
+                clock.now = rel_ms / 1000.0
+                
+                # Check for gear change
+                if prev_gear is not None and t.gear != prev_gear and pending_shift_time is not None:
+                    latencies.append((clock.now - pending_shift_time) * 1000.0)
+                    pending_shift_time = None
+
+                mock_out.last_shift_time = None
+                tcu.process(t)
+                
+                if mock_out.last_shift_time is not None:
+                    pending_shift_time = mock_out.last_shift_time
+
+                prev_gear = t.gear
+
+            if latencies:
+                latencies.sort()
+                median = statistics.median(latencies)
+                p90 = latencies[int(len(latencies) * 0.90)]
+                p99 = latencies[int(len(latencies) * 0.99)]
+                out.write(f"{path.name}:\n")
+                out.write(f"  Samples: {len(latencies)}\n")
+                out.write(f"  Median : {median:.1f} ms\n")
+                out.write(f"  P90    : {p90:.1f} ms\n")
+                out.write(f"  P99    : {p99:.1f} ms\n")
+            else:
+                out.write(f"{path.name}:\n  No shifts detected.\n")
+        finally:
+            virtual_tcu.logic.tcu.time.time = original_time
+
+    out.write("==================================\n\n")
+
 def _gear_label(gear: int) -> str:
     if gear == 0:
         return "R"
@@ -216,6 +305,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="only print rows where gear changed",
     )
+    parser.add_argument(
+        "--clutch-ab",
+        action="store_true",
+        help="analyze shift latency (time from command to actual gear change)",
+    )
     return parser
 
 
@@ -248,7 +342,10 @@ def main(argv: list[str] | None = None) -> int:
         out_io = sys.stdout
 
     try:
-        format_paths(paths, out_io, fmt=args.format, shift_only=args.shift_only)
+        if args.clutch_ab:
+            analyze_shift_latency(paths, out_io)
+        else:
+            format_paths(paths, out_io, fmt=args.format, shift_only=args.shift_only)
     except ValueError as e:
         print(f"[replay] {e}", file=sys.stderr)
         return 1
