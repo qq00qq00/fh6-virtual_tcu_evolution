@@ -13,8 +13,12 @@
 
 <template>
   <header
-    class="border-tcu-border from-tcu-bg-1 to-tcu-bg-0 flex items-center justify-between border-b bg-linear-to-b px-6 py-3.5 max-[700px]:px-3.5"
+    class="border-tcu-border from-tcu-bg-1 to-tcu-bg-0 relative flex items-center justify-between border-b bg-linear-to-b px-6 py-3.5 max-[700px]:px-3.5"
   >
+    <div
+      class="from-accent via-accent-2 to-accent pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r opacity-80"
+      aria-hidden="true"
+    />
     <div class="text-xl font-bold tracking-tight">
       {{ $t('app.title') }}
       <span class="text-tcu-txt-dim ml-2 text-sm font-normal">{{ appVersion }}</span>

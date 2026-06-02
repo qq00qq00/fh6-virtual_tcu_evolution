@@ -1,22 +1,26 @@
 @theme {
-  --color-tcu-bg-0: #050505;
-  --color-tcu-bg-1: #0a0a0c;
-  --color-tcu-bg-2: #111113;
-  --color-tcu-bg-3: #18181b;
-  --color-tcu-border: #27272a;
-  --color-tcu-txt: #f4f4f5;
-  --color-tcu-txt-muted: #a1a1aa;
-  --color-tcu-txt-dim: #71717a;
+  --color-tcu-bg-0: #030712;
+  --color-tcu-bg-1: #0b0f19;
+  --color-tcu-bg-2: #111827;
+  --color-tcu-bg-3: #1e293b;
+  --color-tcu-border: #334155;
+  --color-tcu-txt: #f8fafc;
+  --color-tcu-txt-muted: #94a3b8;
+  --color-tcu-txt-dim: #64748b;
 
   --color-accent: #22c55e;
-  --color-accent-2: #3b82f6;
-  --color-warn: #eab308;
+  --color-accent-2: #38bdf8;
+  --color-warn: #f59e0b;
   --color-danger: #ef4444;
+  --color-cta: #dc2626;
 
-  --color-mode-comfort: #3b82f6;
-  --color-mode-dynamic: #a855f7;
+  --color-mode-comfort: #38bdf8;
+  --color-mode-dynamic: #a78bfa;
   --color-mode-race: #22c55e;
-  --color-mode-drift: #ef4444;
-  --color-mode-offroad: #f97316;
-  --color-mode-manual: #71717a;
+  --color-mode-drift: #f43f5e;
+  --color-mode-offroad: #fb923c;
+  --color-mode-manual: #94a3b8;
+
+  --font-sans: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, monospace;
 }

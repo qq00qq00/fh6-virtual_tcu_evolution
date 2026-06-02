@@ -2,7 +2,20 @@
   import type { TabId } from './settings-panel'
   import type { SessionStats, ShiftHistoryItem, TelemetrySnapshot } from '@/types/telemetry'
   import type { ConfigMap } from '@/types/ws'
-  import { NButton, NCard, NFlex, NInput, NSlider, NSwitch, NTabPane, NTabs, NText } from 'naive-ui'
+  import { HUD_TEMPLATES } from '@virtual-tcu/shared/config/hud'
+  import {
+    NButton,
+    NCard,
+    NFlex,
+    NInput,
+    NRadioButton,
+    NRadioGroup,
+    NSlider,
+    NSwitch,
+    NTabPane,
+    NTabs,
+    NText,
+  } from 'naive-ui'
   import { computed, toRefs } from 'vue'
   import {
     CLUTCH_ASSIST_FIELDS,
@@ -350,6 +363,26 @@
                   {{ $t(`extras.networkErrors.${networkApplyError}`) }}
                 </NText>
               </NFlex>
+            </NCard>
+
+            <NCard :title="$t('electronApp.hudTitle')" size="small" :bordered="false">
+              <NText depth="3" style="font-size: 12px; display: block; margin-bottom: 12px">
+                {{ $t('electronApp.hudHint') }}
+              </NText>
+              <NRadioGroup
+                :value="configText('hud_template') || 'classic'"
+                size="small"
+                @update:value="(v: string) => emit('setConfig', 'hud_template', v)"
+              >
+                <NFlex :size="8" wrap>
+                  <NRadioButton
+                    v-for="opt in HUD_TEMPLATES"
+                    :key="opt.value"
+                    :value="opt.value"
+                    :label="$t(`electronApp.${opt.i18nKey}`)"
+                  />
+                </NFlex>
+              </NRadioGroup>
             </NCard>
 
             <NCard :title="$t('extras.profileTitle')" size="small" :bordered="false">

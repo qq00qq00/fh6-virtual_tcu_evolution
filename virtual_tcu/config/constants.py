@@ -83,4 +83,5 @@ DEFAULTS = {
     "web_host": "127.0.0.1",
     "web_port": 8765,
     "udp_port": 5555,
+    "hud_template": "classic",
 }

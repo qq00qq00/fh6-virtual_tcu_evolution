@@ -89,7 +89,7 @@
 </script>
 
 <template>
-  <TcuConfigProvider>
+  <TcuConfigProvider dark>
     <NLayout style="height: 100%" content-style="display: flex; flex-direction: column;">
       <NLayoutHeader bordered style="padding: 12px 20px">
         <NFlex justify="space-between" align="center">

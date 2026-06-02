@@ -130,6 +130,8 @@ class WebServer:
             self._config.set(key, val)
             if key in ("shift_key_up", "shift_key_down"):
                 self._tcu.refresh_shift_keys()
+            if key == "hud_template":
+                await self._broadcast_json({"type": "config_update", "data": {"hud_template": val}})
         elif t == "set_network":
             await self._apply_network(msg)
         elif t == "set_web_bind":

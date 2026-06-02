@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import type { TelemetrySnapshot } from '@virtual-tcu/shared/types/telemetry'
   import { toRefs } from 'vue'
+  import ShiftAdvisorArrows from '../components/ShiftAdvisorArrows.vue'
   import { getLedColor, useDashboardPanel } from './dashboard-panel'
   import DashboardChart from './DashboardChart.vue'
 
@@ -34,6 +35,8 @@
     subState,
     attitude,
     hint,
+    shiftAdvice,
+    showShiftAdvisor,
     isAirborne,
     isYawLocked,
     gear,
@@ -43,7 +46,7 @@
 
 <template>
   <div
-    class="bg-tcu-bg-0 border-tcu-border text-tcu-txt flex h-full min-h-0 flex-col justify-start gap-3 overflow-hidden border-l p-4 font-mono select-none"
+    class="bg-tcu-bg-0 border-tcu-border text-tcu-txt ui-panel-glow flex h-full min-h-0 flex-col justify-start gap-3 overflow-hidden border-l p-4 font-mono select-none"
   >
     <div v-if="live && telemetry" class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <div class="flex shrink-0 flex-col gap-3">
@@ -61,26 +64,28 @@
         <div class="grid h-[280px] shrink-0 grid-cols-[220px_1fr_180px] gap-3 overflow-hidden">
           <div class="flex flex-col gap-3">
             <div
-              class="border-tcu-border bg-tcu-bg-1 relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-lg border shadow-inner"
+              class="border-tcu-border bg-tcu-bg-1 ui-card relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border p-2"
             >
-              <div
-                v-if="hint"
-                class="text-accent absolute top-2 left-0 z-10 w-full animate-pulse text-center text-sm font-bold tracking-widest"
+              <ShiftAdvisorArrows
+                :advice="showShiftAdvisor ? shiftAdvice : ''"
+                :hint="hint"
+                :show-hint="showShiftAdvisor && !!hint"
+                size="lg"
               >
-                {{ hint }}
-              </div>
-
-              <div
-                class="text-[140px] leading-none font-black tracking-tighter tabular-nums"
-                :class="
-                  state === 'SHIFTING' ? 'text-accent-2' : gear === 'R' ? 'text-warn' : 'text-white'
-                "
-              >
-                {{ gear }}
-              </div>
-              <div
-                class="text-tcu-txt-dim absolute bottom-3 mt-1 text-[10px] tracking-widest uppercase"
-              >
+                <div
+                  class="text-[140px] leading-none font-black tracking-tighter tabular-nums"
+                  :class="
+                    state === 'SHIFTING'
+                      ? 'text-accent-2'
+                      : gear === 'R'
+                        ? 'text-warn'
+                        : 'text-white'
+                  "
+                >
+                  {{ gear }}
+                </div>
+              </ShiftAdvisorArrows>
+              <div class="text-tcu-txt-dim mt-1 text-[10px] tracking-widest uppercase">
                 {{ t.drivetrain || 'DRIVETRAIN' }}
               </div>
             </div>

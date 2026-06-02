@@ -12,7 +12,7 @@
   } from 'naive-ui'
   import { computed } from 'vue'
   import { useI18n } from 'vue-i18n'
-  import { tcuThemeOverrides } from '../theme'
+  import { tcuDarkThemeOverrides, tcuThemeOverrides } from '../theme'
 
   const props = withDefaults(
     defineProps<{
@@ -26,12 +26,13 @@
   const naiveLocale = computed(() => (locale.value === 'zh-CN' ? zhCN : enUS))
   const naiveDateLocale = computed(() => (locale.value === 'zh-CN' ? dateZhCN : dateEnUS))
   const theme = computed(() => (props.dark ? darkTheme : lightTheme))
+  const overrides = computed(() => (props.dark ? tcuDarkThemeOverrides : tcuThemeOverrides))
 </script>
 
 <template>
   <NConfigProvider
     :theme="theme"
-    :theme-overrides="tcuThemeOverrides"
+    :theme-overrides="overrides"
     :locale="naiveLocale"
     :date-locale="naiveDateLocale"
     style="height: 100%"

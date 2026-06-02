@@ -80,6 +80,9 @@ export function useTcuStore() {
         Object.keys(config).forEach((k) => delete config[k])
         Object.assign(config, msg.data)
         break
+      case 'config_update':
+        Object.assign(config, msg.data)
+        break
       case 'log_status':
         logStatus.value = msg.data
         break

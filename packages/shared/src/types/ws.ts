@@ -54,6 +54,7 @@ export type WsInbound =
   | { type: 'graph_data'; data: unknown }
   | { type: 'network_changed'; ok?: boolean; error?: string; data: WebUrls }
   | { type: 'web_bind_changed'; ok?: boolean; error?: string; data: WebUrls }
+  | { type: 'config_update'; data: Partial<ConfigMap> }
 
 export interface TcuUiState {
   connected: boolean

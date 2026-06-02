@@ -45,6 +45,8 @@ export interface TelemetrySnapshot {
   tcu_state: string
   tcu_state_sub: string
   shift_hint?: string
+  /** Manual-mode shift advisor: up | down | empty */
+  shift_advice?: 'up' | 'down' | ''
   power_kw?: number
   torque_nm?: number
   turbo_bar?: number

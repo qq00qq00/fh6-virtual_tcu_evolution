@@ -64,7 +64,7 @@ function createSettingsWindow() {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: '#f4f6fa',
+    backgroundColor: '#030712',
     title: 'Virtual TCU',
     webPreferences: {
       preload: join(__dirname, '..', 'preload', 'main.js'),
@@ -157,8 +157,8 @@ function createHudWindow() {
   }
 
   hudWindow = new BrowserWindow({
-    width: 280,
-    height: 140,
+    width: 300,
+    height: 152,
     x: 24,
     y: 24,
     show: false,

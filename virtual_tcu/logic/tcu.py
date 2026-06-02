@@ -100,6 +100,7 @@ class TCULogic:
         self._attitude = "NEUTRAL"
         self._attitude_sub = ""
         self._shift_hint = ""
+        self._shift_advice = ""
         self._grip_usage = 0.0
         self._g_lat = 0.0
         self._g_lon = 0.0
@@ -267,6 +268,7 @@ class TCULogic:
                     "g_lon": 0,
                     "grip_usage": 0,
                     "shift_hint": "",
+                    "shift_advice": "",
                     "peak_rpm": self._peak_rpm,
                     "peak_g": self._peak_g,
                     "calibrated": False,
@@ -304,6 +306,7 @@ class TCULogic:
                 "g_lon": self._g_lon,
                 "grip_usage": self._grip_usage,
                 "shift_hint": self._shift_hint,
+                "shift_advice": self._shift_advice,
                 "peak_rpm": self._peak_rpm,
                 "peak_g": self._peak_g,
                 "calibrated": self._calibrator.has_data(td.car_key),
@@ -494,6 +497,7 @@ class TCULogic:
             return
 
         self._shift_hint = ""
+        self._shift_advice = ""
 
         if self._config.get("feat_launch_control") and self._launch_control(td, now):
             return
@@ -992,12 +996,16 @@ class TCULogic:
 
         if td.rpm_pct >= up_pct and td.speed_kmh > Cfg.MIN_SPEED_KMH:
             self._shift_hint = f"↑ UP to {td.gear + 1}"
+            self._shift_advice = "up"
         elif td.rpm_pct < 0.30 and td.gear > 2 and thr > 0.30:
             self._shift_hint = f"↓ DOWN to {td.gear - 1}"
+            self._shift_advice = "down"
         elif td.brake > 0.50 and td.rpm_pct < 0.40 and td.gear > 1:
             self._shift_hint = f"↓ DOWN to {td.gear - 1} (brake)"
+            self._shift_advice = "down"
         else:
             self._shift_hint = ""
+            self._shift_advice = ""
 
     def _launch_control(self, td: Telemetry, now: float) -> bool:
         is_stationary = td.speed_effective_ms < 3.0

@@ -1,5 +1,6 @@
 import type { TelemetrySnapshot } from '@virtual-tcu/shared/types/telemetry'
 import type { Ref } from 'vue'
+import { parseShiftAdvice } from '@virtual-tcu/shared/config/hud'
 import { computed } from 'vue'
 
 export function useDashboardPanel(telemetry: Ref<TelemetrySnapshot | null>) {
@@ -24,6 +25,8 @@ export function useDashboardPanel(telemetry: Ref<TelemetrySnapshot | null>) {
   const subState = computed(() => t.value.tcu_state_sub || 'AWAITING TELEMETRY')
   const attitude = computed(() => t.value.attitude || 'NEUTRAL')
   const hint = computed(() => t.value.shift_hint || '')
+  const shiftAdvice = computed(() => parseShiftAdvice(t.value.shift_advice))
+  const showShiftAdvisor = computed(() => state.value === 'MANUAL' && !!shiftAdvice.value)
 
   const isAirborne = computed(() => t.value.airborne || false)
   const isYawLocked = computed(() => t.value.yaw_transient || false)
@@ -63,6 +66,8 @@ export function useDashboardPanel(telemetry: Ref<TelemetrySnapshot | null>) {
     subState,
     attitude,
     hint,
+    shiftAdvice,
+    showShiftAdvisor,
     isAirborne,
     isYawLocked,
     gear,

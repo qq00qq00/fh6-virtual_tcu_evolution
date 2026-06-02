@@ -3,6 +3,7 @@
   import { NButton, NCard, NDivider, NFlex, NGrid, NGridItem, NIcon, NTag, NText } from 'naive-ui'
   import { inject } from 'vue'
   import { settingsContextKey } from './context'
+  import SettingsHud from './SettingsHud.vue'
 
   const ctx = inject(settingsContextKey)!
   const {
@@ -138,6 +139,10 @@
           </NGridItem>
         </NGrid>
       </NCard>
+    </NGridItem>
+
+    <NGridItem :span="12">
+      <SettingsHud />
     </NGridItem>
 
     <NGridItem :span="6">
