@@ -1,29 +1,77 @@
 .hud-root {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: max-content;
+  min-width: var(--hud-min-width, 252px);
+  max-width: var(--hud-max-width, 420px);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: var(--hud-pad-y, 10px) var(--hud-pad-x, 12px);
   font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace;
   -webkit-font-smoothing: antialiased;
   -webkit-app-region: drag;
   transition:
     background 180ms,
-    border-color 180ms,
-    box-shadow 180ms;
+    border-color 180ms;
+  --hud-chrome-fg: #64748b;
+  --hud-chrome-mode-fg: #cbd5e1;
+  --hud-chrome-state-fg: #64748b;
+  --hud-chrome-btn-bg: rgba(255, 255, 255, 0.06);
+  --hud-chrome-btn-border: rgba(255, 255, 255, 0.1);
+  --hud-chrome-btn-fg: #94a3b8;
+  --hud-chrome-btn-hover-bg: rgba(255, 255, 255, 0.12);
+  --hud-chrome-btn-hover-fg: #e2e8f0;
+  --hud-chrome-btn-active-bg: rgba(255, 255, 255, 0.18);
+  --hud-chrome-btn-active-border: rgba(255, 255, 255, 0.28);
+  --hud-chrome-btn-active-fg: #ffffff;
 }
 
 .hud-root.disconnected {
   border-color: rgba(239, 68, 68, 0.45) !important;
 }
 
+/* Minimal: chrome footer under the instrument panel */
+.hud-root.tpl-minimal-shell .chrome-foot .hud-chrome {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-app-region: no-drag;
+}
+
+.hud-root.tpl-minimal-shell .panel.mode-pinned {
+  -webkit-app-region: drag;
+}
+
+.hud-root.tpl-minimal-shell .chrome-foot .hud-chrome .actions,
+.hud-root.tpl-minimal-shell .chrome-foot .hud-chrome .btn {
+  -webkit-app-region: no-drag;
+}
+
+.hud-root.tpl-minimal-shell:not(.click-through) {
+  --hud-chrome-btn-bg: rgba(255, 255, 255, 0.1);
+  --hud-chrome-btn-border: rgba(255, 255, 255, 0.22);
+  --hud-chrome-btn-fg: #e2e8f0;
+  --hud-chrome-btn-hover-bg: rgba(255, 255, 255, 0.18);
+  --hud-chrome-btn-hover-fg: #ffffff;
+}
+
+.hud-root.tpl-minimal-shell.click-through .chrome-foot .hud-chrome {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+}
+
+.hud-root.click-through.tpl-minimal-shell .mode-name {
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.9);
+  paint-order: stroke fill;
+}
+
 .hud-root.click-through {
   background: transparent !important;
   border-color: transparent !important;
-  box-shadow: none !important;
   -webkit-app-region: no-drag;
   --ct-outline:
     -1px -1px 0 rgba(0, 0, 0, 0.95), 1px -1px 0 rgba(0, 0, 0, 0.95), -1px 1px 0 rgba(0, 0, 0, 0.95),
@@ -31,40 +79,95 @@
   --ct-outline-soft: var(--ct-outline), 0 0 2px rgba(255, 255, 255, 0.55);
 }
 
-.hud-root.click-through .mode-pill,
-.hud-root.click-through .state-pill,
-.hud-root.click-through .rpm-num,
-.hud-root.click-through .rpm-unit,
-.hud-root.click-through .speed-num,
-.hud-root.click-through .speed-unit,
-.hud-root.click-through .hud-chrome-row,
-.hud-root.click-through .hint,
-.hud-root.click-through .gear {
+.hud-root.click-through .global-shift-banner {
+  background: transparent !important;
+  border: none !important;
+}
+
+.hud-root.click-through .global-shift-banner.active {
+  background: transparent !important;
+  border: none !important;
+}
+
+.hud-root.click-through .global-shift-banner.up.active,
+.hud-root.click-through .global-shift-banner.down.active {
+  border-top: none !important;
+}
+
+.hud-root.click-through .global-shift-banner .chev,
+.hud-root.click-through .global-shift-banner .label {
   text-shadow: var(--ct-outline-soft);
 }
 
-.hud-root.click-through .btn {
+.hud-root.click-through .global-shift-banner.up.active .chev {
+  text-shadow:
+    var(--ct-outline-soft),
+    0 0 8px rgba(234, 179, 8, 0.5);
+}
+
+.hud-root.click-through .global-shift-banner.down.active .chev {
+  text-shadow:
+    var(--ct-outline-soft),
+    0 0 8px rgba(56, 189, 248, 0.5);
+}
+
+.hud-root.click-through .global-shift-banner.up.active .label {
+  color: #fde047;
+}
+
+.hud-root.click-through .global-shift-banner.down.active .label {
+  color: #7dd3fc;
+}
+
+.hud-root.click-through .hud-chrome.interactive {
+  -webkit-app-region: no-drag;
+}
+
+.hud-root.click-through .hud-chrome,
+.hud-root.click-through .mode-name,
+.hud-root.click-through .state-name,
+.hud-root.click-through.tpl-minimal-shell .gear-lbl,
+.hud-root.click-through .rpm-num,
+.hud-root.click-through .rpm-unit,
+.hud-root.click-through .scale-8,
+.hud-root.click-through .speed-num,
+.hud-root.click-through .speed-unit,
+.hud-root.click-through .gear,
+.hud-root.click-through .metric-val,
+.hud-root.click-through .metric-label,
+.hud-root.click-through .speed,
+.hud-root.click-through .unit,
+.hud-root.click-through .gear-lbl,
+.hud-root.click-through .mode-tag {
+  text-shadow: var(--ct-outline-soft);
+}
+
+.hud-root.click-through .btn,
+.hud-root.click-through .icon-btn {
   background: rgba(0, 0, 0, 0.45);
   border-color: rgba(255, 255, 255, 0.35);
   color: #ffffff;
+  opacity: 1;
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.6),
     0 2px 8px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
 }
 
-.hud-root.click-through .btn:hover {
+.hud-root.click-through .btn:hover,
+.hud-root.click-through .icon-btn:hover {
   background: rgba(0, 0, 0, 0.6);
 }
 
-.hud-root.click-through .btn.active {
+.hud-root.click-through .btn.active,
+.hud-root.click-through .icon-btn.active {
   background: rgba(255, 255, 255, 0.22);
   border-color: rgba(255, 255, 255, 0.65);
   color: #ffffff;
 }
 
 .hud-status {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-align: center;
@@ -89,7 +192,8 @@
 @media (prefers-reduced-motion: reduce) {
   .hud-root,
   .rpm-fill,
-  .rpm-arc {
+  .rpm-arc,
+  .arc-fill {
     transition: none !important;
     animation: none !important;
   }
