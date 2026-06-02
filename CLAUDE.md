@@ -72,7 +72,7 @@ pip install -r requirements.txt
 - `keyboard` — required, global hotkey registration and virtual key injection
 - `aiohttp` — optional, enables the web UI (runs headless without it)
 - `pypresence` — optional, Discord Rich Presence integration
-- `vgamepad` — required, virtual Xbox 360 controller emulation (ViGEmBus driver needed at runtime for gamepad output mode)
+- `pyvjoy` — optional, vJoy virtual DirectInput device output (vJoy driver needed at runtime for vjoy output mode)
 
 Dev dependencies (Ruff lint/format) are managed via `pyproject.toml` `[dependency-groups.dev]` or `requirements-dev.txt`. Install with `uv sync --group dev` or `pip install -r requirements-dev.txt`.
 
@@ -111,7 +111,7 @@ virtual_tcu/             # Python backend
   deps.py                # optional imports (keyboard, aiohttp, winsound)
   config/                # Cfg, DEFAULTS, ConfigStore
   telemetry/             # Telemetry model, FH6 parser, UDP receiver, replay logger
-  input/                 # OutputInterface ABC, KeyboardOutput, GamepadOutput
+  input/                 # OutputInterface ABC, KeyboardOutput, VJoyOutput
   storage/               # ProfileStore (per-car JSON)
   core/                  # Mode enum
   detectors/             # Reverse hold, airtime, yaw transient
@@ -153,7 +153,7 @@ The Electron main process waits for the `[backend-ready]` marker on the backend'
 
 1. **TelemetryReceiver** — UDP socket on port 5555, parses FH6's 324-byte packet into a `Telemetry` dataclass
 2. **TCULogic.process()** — runs at 60Hz in the async loop, evaluates shift rules against current telemetry
-3. **OutputInterface** — fires shift commands (KeyboardOutput → E/Q keypresses, or GamepadOutput → virtual XInput buttons); configurable per `output_mode`
+3. **OutputInterface** — fires shift commands (KeyboardOutput → E/Q keypresses, or VJoyOutput → virtual vJoy/DirectInput buttons); configurable per `output_mode`
 4. **WebServer** — aiohttp app serves `web/dist/` and broadcasts state over WebSocket at 30Hz
 
 ### Learning Systems (per-car, persisted to `tcu_profiles.json`)

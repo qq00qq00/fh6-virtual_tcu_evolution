@@ -19,7 +19,6 @@ import { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray } from 'ele
 import { autoUpdater } from 'electron-updater'
 import { BackendLifecycle } from './backend-lifecycle'
 import { openExternalUrl } from './url-policy'
-import { launchVigemInstaller } from './vigem-installer'
 
 const backendLifecycle = new BackendLifecycle()
 
@@ -330,8 +329,6 @@ function registerIpc() {
   })
 
   ipcMain.handle('app:get-version', () => app.getVersion())
-
-  ipcMain.handle('app:install-vigembus', () => launchVigemInstaller())
 }
 
 // ----- Auto-update -----------------------------------------------------------

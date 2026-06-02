@@ -73,16 +73,12 @@ DEFAULTS = {
     "shift_key_up": "e",
     "shift_key_down": "q",
     "output_mode": "keyboard",
-    "gamepad_shift_up": "B",
-    "gamepad_shift_down": "X",
-    "gamepad_preserve_brake": True,
-    # Clutch assist (keyboard / gamepad only; vjoy uses vjoy_use_clutch)
+    # Clutch assist (keyboard only; vjoy uses vjoy_use_clutch)
     "feat_clutch_assist": False,
-    "clutch_key": "shift",          # keyboard clutch key (FH6 = shift)
-    "clutch_pre_ms": 20,            # ms between clutch press and shift key press
-    "clutch_overlap_ms": 55,        # ms shift key is held while clutch is down
-    "clutch_release_ms": 25,        # ms between shift key release and clutch release
-    "gamepad_clutch_btn": "",       # gamepad clutch button name (empty = disabled)
+    "clutch_key": "shift",  # keyboard clutch key (FH6 = shift)
+    "clutch_pre_ms": 20,  # ms between clutch press and shift key press
+    "clutch_overlap_ms": 55,  # ms shift key is held while clutch is down
+    "clutch_release_ms": 25,  # ms between shift key release and clutch release
     "current_mode": "COMFORT",
     "web_host": "127.0.0.1",
     "web_port": 8765,

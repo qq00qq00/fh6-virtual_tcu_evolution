@@ -23,7 +23,7 @@
 
 [![FH6](https://img.shields.io/badge/game-Forza%20Horizon%206-E10600?logo=xbox&logoColor=white)](#forza-horizon-6--in-game-setup-one-time)
 [![i18n](https://img.shields.io/badge/i18n-en%20%7C%20zh--CN-22c55e)](apps/dashboard/)
-[![ViGEm](https://img.shields.io/badge/output-keyboard%20%7C%20gamepad-64748b)](#3-gamepad-mode-optional)
+[![output](https://img.shields.io/badge/output-keyboard%20%7C%20vJoy-64748b)](#3-vjoy-mode-optional)
 
 **English · [简体中文](README.zh-CN.md)**
 
@@ -31,7 +31,7 @@
 
 > This project's core functionality is provided by **Insightful**, maintained for the [**Forza Mods**](https://discord.gg/forzamods) Discord community.
 
-An external adaptive transmission controller for *Forza Horizon 6*. It reads real-time UDP telemetry from the game, decides when to shift based on driving style, throttle, RPM, speed, and brake input, and injects shift commands — **keyboard keys** (E/Q) or **virtual gamepad buttons** (B/X) via ViGEmBus.
+An external adaptive transmission controller for *Forza Horizon 6*. It reads real-time UDP telemetry from the game, decides when to shift based on driving style, throttle, RPM, speed, and brake input, and injects shift commands — **keyboard keys** (E/Q) or **virtual vJoy buttons** (DirectInput).
 
 **v13** ships as a Windows tray app (Electron) with a floating HUD and auto-update. The live telemetry dashboard runs in your browser at **http://127.0.0.1:8765** (English / 简体中文). A portable Python-only build is still available for users who prefer no Electron.
 
@@ -39,7 +39,7 @@ An external adaptive transmission controller for *Forza Horizon 6*. It reads rea
 | :-- | :-- |
 | 🚗 **5 drive modes** | Comfort · Dynamic · Race · Drift · Off-road |
 | 🧠 **Per-car learning** | Gear ratios, power curve, rev limiter, sport index |
-| 📡 **60 Hz TCU loop** | UDP telemetry in → shift logic → keyboard / gamepad out |
+| 📡 **60 Hz TCU loop** | UDP telemetry in → shift logic → keyboard / vJoy out |
 | 🖥️ **Desktop shell** | Tray app, Settings window, floating HUD, browser dashboard |
 | 🔄 **One-click updates** | `electron-updater` ships Electron + Python backend together |
 
@@ -97,20 +97,13 @@ Left-click the tray icon also opens **Settings**.
 
 **Auto-update** checks GitHub Releases shortly after launch and downloads new versions in the background. The full Electron + Python bundle updates as one package (see **About** tab in Settings).
 
-### 3. Gamepad mode (optional)
+### 3. vJoy mode (optional)
 
-By default, the TCU injects keyboard keys (**E** upshift / **Q** downshift). If you prefer virtual controller buttons instead (no keyboard bindings needed), switch to gamepad mode in **Settings → Extras → Output mode**.
+By default, the TCU injects keyboard keys (**E** upshift / **Q** downshift), which works for keyboard, controller, and racing-wheel players alike (a discrete key never overrides your analog steering / throttle).
 
-Gamepad mode requires the **[ViGEmBus](https://github.com/Forza-Love/fh6-virtual_tcu/raw/main/driver/ViGEmBusSetup_x64.msi) driver** — a one-time system install:
+If you prefer a virtual DirectInput device instead — useful for racing wheels, since vJoy shifts don't interrupt force feedback — switch to vJoy mode in **Settings → Extras → Output mode**. This requires the **[vJoy](https://github.com/BrunnerInnovation/vJoy/releases) driver** installed with device #1 enabled, and the matching gear/sequential buttons bound in FH6.
 
-1. Download `ViGEmBus_Setup_*.exe` from the link above.
-2. Run as Administrator → accept the UAC prompt → install.
-3. **Reboot Windows** (required — the driver won't work until after restart).
-4. Launch Virtual TCU, open Settings → Extras, switch **Output mode** to **Gamepad**, set your preferred buttons (default: **B** upshift / **X** downshift), and click **Save & Restart Backend**.
-
-> **Already have Steam, DS4Windows, or reWASD?** Those tools bundle ViGEmBus — you may already have it. If switching to gamepad mode prints an error in the console, install the driver from the link above.
-
-> **Driver missing?** The TCU automatically falls back to keyboard mode and persists the setting so you won't hit the error again on next launch.
+> A virtual XInput "gamepad" output mode existed in older versions but was **removed**: as a second XInput device it sent a full controller-state packet on every shift, zeroing the player's steering/throttle and making cornering feel laggy. Use keyboard (default) or vJoy instead.
 
 ### 4. Play
 
@@ -473,12 +466,11 @@ virtualTCU/
 - Auto-update only runs in the **packaged** Electron installer, not in `npm run dev`.
 - Check the **About** tab in Settings for update status.
 
-### Gamepad mode not working
+### vJoy mode not working
 
-- Install the **[ViGEmBus](https://github.com/Forza-Love/fh6-virtual_tcu/raw/main/driver/ViGEmBusSetup_x64.msi) driver** → reboot Windows.
-- If you already installed it, make sure you rebooted after installation.
-- Switch output mode to **Keyboard** in Settings → Extras if you don't want to install the driver.
-- The TCU automatically falls back to keyboard mode if the driver is missing.
+- Install the **[vJoy](https://github.com/BrunnerInnovation/vJoy/releases) driver** → reboot Windows → enable device #1.
+- Bind the gear / sequential shift buttons in FH6 to match the vJoy buttons configured in Settings → Extras.
+- Switch output mode back to **Keyboard** in Settings → Extras if you don't want to install vJoy — keyboard works for controllers and wheels too.
 
 ---
 

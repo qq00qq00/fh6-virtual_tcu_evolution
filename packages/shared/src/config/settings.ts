@@ -102,26 +102,7 @@ export const NETWORK_FIELDS = [
 
 export const OUTPUT_MODE_OPTIONS = [
   { value: 'keyboard', i18nKey: 'outputModeKeyboard' },
-  { value: 'gamepad', i18nKey: 'outputModeGamepad' },
   { value: 'vjoy', i18nKey: 'outputModeVjoy' },
-] as const
-
-export const GAMEPAD_BUTTON_OPTIONS = [
-  { value: 'A', label: 'A (底部)' },
-  { value: 'B', label: 'B (右侧)' },
-  { value: 'X', label: 'X (左侧)' },
-  { value: 'Y', label: 'Y (顶部)' },
-  { value: 'LB', label: 'LB (左肩键)' },
-  { value: 'RB', label: 'RB (右肩键)' },
-  { value: 'DPAD_UP', label: '十字键 上' },
-  { value: 'DPAD_DOWN', label: '十字键 下' },
-  { value: 'DPAD_LEFT', label: '十字键 左' },
-  { value: 'DPAD_RIGHT', label: '十字键 右' },
-] as const
-
-export const GAMEPAD_BUTTON_FIELDS = [
-  { key: 'gamepad_shift_up', i18nKey: 'gamepadShiftUp', placeholder: 'B' },
-  { key: 'gamepad_shift_down', i18nKey: 'gamepadShiftDown', placeholder: 'X' },
 ] as const
 
 // vJoy buttons B1–B14 map 1:1 to the device buttons in virtual_tcu/input/vjoy_output.py.

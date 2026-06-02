@@ -35,7 +35,6 @@ const api = {
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
   getBackendInfo: () => ipcRenderer.invoke('app:get-backend-info'),
   restartBackend: () => ipcRenderer.invoke('app:restart-backend'),
-  installViGEmBus: (): Promise<IpcActionResult> => ipcRenderer.invoke('app:install-vigembus'),
   onBackendReady: (cb: (info: { wsUrl?: string; url?: string; ready?: boolean }) => void) => {
     const listener = (_: unknown, info: { wsUrl?: string; url?: string; ready?: boolean }) =>
       cb(info)

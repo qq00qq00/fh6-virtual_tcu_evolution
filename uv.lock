@@ -247,15 +247,6 @@ wheels = [
 ]
 
 [[package]]
-name = "libevdev"
-version = "0.13.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/86/ff/4f8ab38330965168be742b772bcd151a7a052ea17b2481c43a607875d4ed/libevdev-0.13.1.tar.gz", hash = "sha256:dc3369cd1401767b9ecb1117cd6b73faba9038e3bd9e1695a710a9e9d9415e8d", size = 61523, upload-time = "2025-11-14T07:27:11.932Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/81/a61deef77c83752bb28aac9373676d9f2218a53bfd7bfb9baf10c612dc3c/libevdev-0.13.1-py3-none-any.whl", hash = "sha256:1a15dc796ecb1cba679fc564686f9efab5124efae6e41dba8f4bf377d5a72f4a", size = 33627, upload-time = "2025-11-14T07:27:10.253Z" },
-]
-
-[[package]]
 name = "multidict"
 version = "6.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3227,14 +3218,6 @@ wheels = [
 ]
 
 [[package]]
-name = "vgamepad"
-version = "0.1.3"
-source = { git = "https://github.com/yannbouteiller/vgamepad?rev=v0.1.3#c1d728a6813760a5be21ac9379f4b23347fe8345" }
-dependencies = [
-    { name = "libevdev" },
-]
-
-[[package]]
 name = "virtual-tcu"
 version = "13.1.2"
 source = { virtual = "." }
@@ -3242,7 +3225,6 @@ dependencies = [
     { name = "aiohttp" },
     { name = "keyboard" },
     { name = "pypresence" },
-    { name = "vgamepad" },
 ]
 
 [package.dev-dependencies]
@@ -3256,7 +3238,6 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.0" },
     { name = "keyboard", specifier = ">=0.13.5" },
     { name = "pypresence", specifier = ">=4.3.0" },
-    { name = "vgamepad", git = "https://github.com/yannbouteiller/vgamepad?rev=v0.1.3" },
 ]
 
 [package.metadata.requires-dev]

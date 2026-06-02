@@ -8,8 +8,6 @@
     CLUTCH_ASSIST_FIELDS,
     CLUTCH_TIMING_SLIDERS,
     FEATURE_TOGGLES,
-    GAMEPAD_BUTTON_FIELDS,
-    GAMEPAD_BUTTON_OPTIONS,
     HOTKEY_FIELDS,
     OUTPUT_MODE_OPTIONS,
     SETTING_GROUPS,
@@ -384,56 +382,6 @@
                 style="width: 200px"
                 @update:value="emit('setConfig', 'output_mode', $event)"
               />
-              <template v-if="(($props.config as any).output_mode || 'keyboard') === 'gamepad'">
-                <NText depth="3" style="font-size: 12px; display: block; margin: 12px 0 8px">
-                  {{ $t('extras.gamepadButtonHint') }}
-                </NText>
-                <NFlex vertical :size="10">
-                  <NFlex
-                    v-for="g in GAMEPAD_BUTTON_FIELDS"
-                    :key="g.key"
-                    justify="space-between"
-                    align="center"
-                    :size="8"
-                  >
-                    <NText>{{ $t(`extras.${g.i18nKey}`) }}</NText>
-                    <NSelect
-                      :value="configText(g.key) || g.placeholder"
-                      :options="
-                        GAMEPAD_BUTTON_OPTIONS.map((o) => ({ label: o.label, value: o.value }))
-                      "
-                      size="small"
-                      style="width: 140px"
-                      @update:value="emit('setConfig', g.key, $event)"
-                    />
-                  </NFlex>
-                </NFlex>
-
-                <NFlex justify="space-between" align="center" style="margin-top: 16px">
-                  <NText>{{ $t('extras.clutchAssist') }}</NText>
-                  <NSwitch
-                    :value="configBool('feat_clutch_assist')"
-                    @update:value="emit('setConfig', 'feat_clutch_assist', $event)"
-                  />
-                </NFlex>
-                <template v-if="configBool('feat_clutch_assist')">
-                  <NText depth="3" style="font-size: 11px; display: block; margin: 4px 0 12px">
-                    {{ $t('extras.gamepadClutchBtnHint') }}
-                  </NText>
-                  <NFlex justify="space-between" align="center" :size="8">
-                    <NText>{{ $t('extras.gamepadClutchBtn') }}</NText>
-                    <NSelect
-                      :value="configText('gamepad_clutch_btn') || ''"
-                      :options="
-                        [{label: 'None', value: ''}, ...GAMEPAD_BUTTON_OPTIONS.map((o) => ({ label: o.label, value: o.value }))]
-                      "
-                      size="small"
-                      style="width: 140px"
-                      @update:value="emit('setConfig', 'gamepad_clutch_btn', $event)"
-                    />
-                  </NFlex>
-                </template>
-              </template>
               <template v-if="(($props.config as any).output_mode || 'keyboard') === 'vjoy'">
                 <NText depth="3" style="font-size: 12px; display: block; margin: 12px 0 8px">
                   {{ $t('extras.vjoyHint') }}

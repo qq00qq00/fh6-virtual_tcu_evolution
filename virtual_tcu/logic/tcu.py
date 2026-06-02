@@ -392,10 +392,6 @@ class TCULogic:
         if td.brake > 0.50:
             self._last_hard_brake_time = now
 
-        # Let the output mirror the physical brake (gamepad LT preservation);
-        # no-op for keyboard/vjoy.
-        self._kb.set_brake(td.brake)
-
         if td.current_rpm > self._peak_rpm:
             self._peak_rpm = td.current_rpm
 
@@ -531,7 +527,10 @@ class TCULogic:
         if td.gear >= 2 and td.speed_kmh < min_sensible_speed and td.rpm_pct < 0.40:
             self._tcu_state = "GEAR MISMATCH"
             self._tcu_state_sub = f"too high for {td.speed_kmh:.0f} km/h"
-            self._no_downshift_until = 0.0
+            # Cap any long cooldown (e.g. from an upshift) so recovery is prompt,
+            # but do NOT clear to 0 — that would defeat the cascade cooldown from
+            # _shift_down itself and spam one command per frame under braking.
+            self._no_downshift_until = min(self._no_downshift_until, now + 0.20)
             self._shift_down(td, 350, "MISMATCH", f"{td.gear}→{td.gear - 1}")
             return
 
@@ -844,6 +843,17 @@ class TCULogic:
 
         if td.rpm_pct >= threshold:
             return False
+
+        # Anti-hunting: don't downshift if the target gear would already be near
+        # the upshift threshold — that would produce an immediate re-upshift.
+        car_ratios = self._calibrator.get_ratios(td.car_key)
+        if car_ratios and td.gear - 1 in car_ratios and td.engine_max_rpm > 0:
+            pct_in_target = car_ratios[td.gear - 1] * td.speed_kmh / td.engine_max_rpm
+            up_fallback = self._config.get("race_up_wot", 94) / 100
+            up_pct = self._power_curve.optimal_upshift_rpm(td, fallback=up_fallback, offset=0.03)
+            if pct_in_target >= up_pct - 0.08:
+                return False
+
         if not self._shift_down(td, 400, "BAND DOWN", "climb" if climbing else "out of band"):
             return False
         self._no_upshift_until = now + 0.8
@@ -1122,6 +1132,18 @@ class TCULogic:
         target = self._target_gear_for_power(td)
         if target is None:
             return False
+
+        # Anti-hunting guard: if the target gear would land us at or above the
+        # upshift threshold (within an 8% hysteresis buffer), the downshift would
+        # immediately trigger a re-upshift and create gear hunting.
+        car_ratios = self._calibrator.get_ratios(td.car_key)
+        if car_ratios and target in car_ratios and td.engine_max_rpm > 0:
+            rpm_in_target = car_ratios[target] * td.speed_kmh
+            pct_in_target = rpm_in_target / td.engine_max_rpm
+            up_fallback = self._config.get("race_up_wot", 94) / 100
+            up_pct = self._power_curve.optimal_upshift_rpm(td, fallback=up_fallback, offset=0.03)
+            if pct_in_target >= up_pct - 0.08:
+                return False
 
         # Allow at most a double-down so we don't stack inputs on one demand.
         if target <= td.gear - 2 and td.gear >= 4:

@@ -260,7 +260,8 @@ export default {
     shiftKeyUp: 'Upshift',
     shiftKeyDown: 'Downshift',
     clutchAssist: 'Clutch Assist (opt-in)',
-    clutchAssistHint: 'Press clutch key before each shift. For "Manual with Clutch" players only. Default off.',
+    clutchAssistHint:
+      'Press clutch key before each shift. For "Manual with Clutch" players only. Default off.',
     clutchKey: 'Clutch key',
     clutchPreMs: 'Pre-shift ms',
     clutchOverlapMs: 'Overlap ms',
@@ -268,14 +269,8 @@ export default {
     outputMode: 'Output mode',
     outputModeHint: 'Choose how the TCU sends shift commands to the game.',
     outputModeKeyboard: 'Keyboard (E / Q)',
-    outputModeGamepad: 'Gamepad (virtual XInput)',
     outputModeVjoy: 'vJoy (racing wheel / DirectInput)',
     outputModeRestart: 'Changing output mode requires a backend restart to take effect.',
-    gamepadButtonHint: 'Gamepad button mapping (default: A=upshift, X=downshift).',
-    gamepadShiftUp: 'Upshift button',
-    gamepadShiftDown: 'Downshift button',
-    gamepadClutchBtn: 'Clutch button',
-    gamepadClutchBtnHint: 'Button-only clutch. Avoids LT/RT conflict with brake mirror.',
     vjoyHint:
       'vJoy sends shifts as a virtual DirectInput device, so a force-feedback wheel keeps working. Requires the vJoy driver installed and device #1 enabled.',
     vjoyDirectShift: 'Direct gear select',
@@ -287,13 +282,6 @@ export default {
     vjoyShiftUp: 'Upshift button',
     vjoyShiftDown: 'Downshift button',
     saveAndRestart: 'Save & Restart Backend',
-    gamepadCheckFailed: 'ViGEmBus driver not found',
-    gamepadCheckFailedHint:
-      'Gamepad output requires the ViGEmBus virtual controller driver. Download it from {url}, install, and reboot Windows before switching to gamepad mode. If the driver is already installed, try Save & Restart Backend first.',
-    gamepadCheckTimeout: 'Gamepad driver check timed out — backend may be busy. Try again.',
-    installDriver: 'Install Driver',
-    installDriverHint:
-      'After installation completes, reboot Windows for the driver to take effect.',
     cycleMode: 'Cycle mode',
     toggleLog: 'Toggle log',
     fullTuning: 'Drive modes — full tuning',

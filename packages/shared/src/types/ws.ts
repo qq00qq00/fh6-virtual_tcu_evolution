@@ -21,7 +21,7 @@ export interface InitPayload {
   defaults: ConfigMap
   log_status: LogStatus
   web_urls?: WebUrls
-  effective_output_mode?: 'keyboard' | 'gamepad'
+  effective_output_mode?: 'keyboard' | 'vjoy'
 }
 
 export interface StatePayload {
@@ -36,7 +36,6 @@ export type WsOutbound =
   | { type: 'set_config'; key: string; value: string | number | boolean }
   | { type: 'set_web_bind'; host: string; port: number }
   | { type: 'set_network'; web_host: string; web_port: number; udp_port: number }
-  | { type: 'check_gamepad' }
   | { type: 'reset_config' }
   | { type: 'log_start'; mode: string }
   | { type: 'log_stop' }
@@ -53,7 +52,6 @@ export type WsInbound =
   | { type: 'profile_export'; data: unknown }
   | { type: 'profile_imported'; ok: boolean; data?: ConfigMap; error?: string }
   | { type: 'graph_data'; data: unknown }
-  | { type: 'gamepad_check'; ok: boolean; error: string }
   | { type: 'network_changed'; ok?: boolean; error?: string; data: WebUrls }
   | { type: 'web_bind_changed'; ok?: boolean; error?: string; data: WebUrls }
 

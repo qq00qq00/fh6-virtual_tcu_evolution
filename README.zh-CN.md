@@ -23,7 +23,7 @@
 
 [![FH6](https://img.shields.io/badge/游戏-地平线%206-E10600?logo=xbox&logoColor=white)](#forza-horizon-6-游戏内设置首次配置)
 [![i18n](https://img.shields.io/badge/i18n-en%20%7C%20zh--CN-22c55e)](apps/dashboard/)
-[![ViGEm](https://img.shields.io/badge/输出-键盘%20%7C%20手柄-64748b)](#3-手柄模式可选)
+[![output](https://img.shields.io/badge/输出-键盘%20%7C%20vJoy-64748b)](#3-vjoy-模式可选)
 
 **[English](README.md) · 简体中文**
 
@@ -31,7 +31,7 @@
 
 > 本项目核心功能源码由 **Insightful** 提供，面向 [**Forza Mods**](https://discord.gg/forzamods) Discord 社区用户。
 
-面向《极限竞速：地平线 6》的外部自适应变速箱控制器。通过 UDP 读取游戏遥测，根据驾驶风格、油门、转速、车速与刹车等信号自动换挡，并向游戏注入换挡指令 — **键盘按键**（E/Q）或**虚拟手柄按钮**（B/X）通过 ViGEmBus。
+面向《极限竞速：地平线 6》的外部自适应变速箱控制器。通过 UDP 读取游戏遥测，根据驾驶风格、油门、转速、车速与刹车等信号自动换挡，并向游戏注入换挡指令 — **键盘按键**（E/Q）或**虚拟 vJoy 按钮**（DirectInput）。
 
 **v13** 提供 Windows 托盘桌面应用（Electron），含浮动 HUD 与自动更新；实时遥测仪表盘在浏览器 **http://127.0.0.1:8765** 打开（支持 English / 简体中文）。仍提供纯 Python 便携版，适合不需要 Electron 的用户。
 
@@ -39,7 +39,7 @@
 | :-- | :-- |
 | 🚗 **五种驾驶模式** | 动态 · 竞技 · 漂移 · 越野 |
 | 🧠 **按车学习** | 齿比、功率曲线、断油转速、运动指数 |
-| 📡 **60 Hz 主循环** | UDP 遥测入 → 换挡逻辑 → 键盘 / 手柄出 |
+| 📡 **60 Hz 主循环** | UDP 遥测入 → 换挡逻辑 → 键盘 / vJoy 出 |
 | 🖥️ **桌面壳** | 托盘、设置窗口、HUD 悬浮窗、浏览器仪表盘 |
 | 🔄 **一键更新** | `electron-updater` 将 Electron 与 Python 后端一并升级 |
 
@@ -97,20 +97,13 @@ flowchart LR
 
 **自动更新**在启动后稍晚检查 GitHub Releases，并在后台下载新版本。Electron 与 Python 后端作为整体一起更新（可在设置窗口 **关于** 标签页查看状态）。
 
-### 3. 手柄模式（可选）
+### 3. vJoy 模式（可选）
 
-默认情况下，TCU 注入键盘按键（**E** 升挡 / **Q** 降挡）。如果你偏好使用虚拟手柄按钮（无需设置键盘绑定），可在 **设置 → Extras → 输出模式** 中切换到手柄模式。
+默认情况下，TCU 注入键盘按键（**E** 升挡 / **Q** 降挡）。键盘注入对键盘、手柄、方向盘玩家都适用——离散按键不会覆盖你的模拟转向/油门。
 
-手柄模式需要安装 **[ViGEmBus](https://github.com/Forza-Love/fh6-virtual_tcu/raw/main/driver/ViGEmBusSetup_x64.msi) 驱动** — 一次性系统安装：
+如果你偏好虚拟 DirectInput 设备（方向盘用户尤其推荐，vJoy 换挡不会打断力反馈），可在 **设置 → Extras → 输出模式** 切换到 vJoy 模式。需安装 **[vJoy](https://github.com/BrunnerInnovation/vJoy/releases) 驱动** 并启用 1 号设备，同时在 FH6 中绑定对应的挡位/顺序换挡按钮。
 
-1. 从上方链接下载 `ViGEmBus_Setup_*.exe`。
-2. 以管理员身份运行 → 同意 UAC 弹窗 → 安装。
-3. **重启 Windows**（必须 — 驱动重启后才生效）。
-4. 启动 Virtual TCU，打开设置 → Extras，将 **输出模式** 切换为 **手柄**，设置你偏好的按钮（默认：**B** 升挡 / **X** 降挡），点击 **保存并重启后端**。
-
-> **已安装 Steam、DS4Windows 或 reWASD？** 这些工具会附带 ViGEmBus — 你可能已经有了。如果切换到手柄模式后在控制台看到报错，请从上方的链接安装驱动。
-
-> **驱动缺失？** TCU 会自动回退到键盘模式并持久化配置，下次启动不会再次报错。
+> 旧版本曾有「虚拟 XInput 手柄」输出模式，现已**移除**：作为第二个 XInput 设备，它每次换挡都发送整包手柄状态，把玩家的转向/油门打回中立，导致转弯发卡不跟手。请改用键盘（默认）或 vJoy。
 
 ### 4. 进游戏
 
@@ -477,12 +470,11 @@ virtualTCU/
 - 自动更新仅在**打包后的** Electron 安装版中生效，`npm run dev` 不会检查更新。
 - 在设置窗口 **关于** 标签页查看更新状态。
 
-### 手柄模式不工作
+### vJoy 模式不工作
 
-- 安装 **[ViGEmBus](https://github.com/Forza-Love/fh6-virtual_tcu/raw/main/driver/ViGEmBusSetup_x64.msi) 驱动** → 重启 Windows。
-- 如果已安装，确认安装后已重启过电脑。
-- 如不想安装驱动，在设置 → Extras 中将输出模式切换回**键盘**。
-- 驱动缺失时 TCU 会自动回退到键盘模式。
+- 安装 **[vJoy](https://github.com/BrunnerInnovation/vJoy/releases) 驱动** → 重启 Windows → 启用 1 号设备。
+- 在 FH6 中绑定挡位/顺序换挡按钮，与设置 → Extras 中配置的 vJoy 按钮一致。
+- 如不想安装 vJoy，在设置 → Extras 中将输出模式切换回**键盘**（键盘对手柄和方向盘同样适用）。
 
 ---
 

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-  import { VIGEMBUS_DRIVER_URL } from '@virtual-tcu/shared/config/links'
   import {
     VJOY_BUTTON_OPTIONS,
     VJOY_SHIFT_BUTTON_FIELDS,
   } from '@virtual-tcu/shared/config/settings'
   import {
-    NAlert,
     NButton,
     NCard,
     NFlex,
@@ -17,7 +15,7 @@
     NSwitch,
     NText,
   } from 'naive-ui'
-  import { computed, inject, ref } from 'vue'
+  import { computed, inject } from 'vue'
   import { settingsContextKey } from './context'
 
   const ctx = inject(settingsContextKey)!
@@ -27,8 +25,6 @@
     hotkeyFields,
     shiftKeyFields,
     outputModeOptions,
-    gamepadButtonFields,
-    gamepadButtonOptions,
     advancedSliders,
     networkDraftHost,
     networkDraftWebPort,
@@ -47,13 +43,6 @@
     sliderUnit,
   } = ctx
 
-  const gamepadCheckError = ref('')
-  const gamepadChecking = ref(false)
-
-  function onInstallDriver() {
-    store.installViGEmBus()
-  }
-
   function applyAndRestart() {
     // Save network config keys individually via set_config so they are
     // written to tcu_config.json synchronously before the backend is
@@ -71,7 +60,7 @@
 
   const outputModeValue = computed(() => {
     const v = (store.config as Record<string, unknown>).output_mode
-    return typeof v === 'string' && (v === 'gamepad' || v === 'vjoy') ? v : 'keyboard'
+    return typeof v === 'string' && v === 'vjoy' ? v : 'keyboard'
   })
 
   const outputModeOptionsComputed = computed(() =>
@@ -81,37 +70,7 @@
     })),
   )
 
-  const vigembusUrl = VIGEMBUS_DRIVER_URL
-
-  async function onOutputModeChange(v: string) {
-    if (v === 'gamepad') {
-      // Backend is already driving shifts via a virtual gamepad — no probe needed.
-      if (store.effectiveOutputMode.value === 'gamepad') {
-        gamepadCheckError.value = ''
-        store.setConfig('output_mode', v)
-        return
-      }
-
-      gamepadCheckError.value = ''
-      gamepadChecking.value = true
-      try {
-        const result = await store.checkGamepad()
-        if (!result.ok) {
-          gamepadCheckError.value =
-            result.error === 'timeout'
-              ? t('extras.gamepadCheckTimeout')
-              : t('extras.gamepadCheckFailed')
-          return
-        }
-      } catch {
-        gamepadCheckError.value = t('extras.gamepadCheckTimeout')
-        return
-      } finally {
-        gamepadChecking.value = false
-      }
-    }
-    // Driver OK or switching to keyboard — save config
-    gamepadCheckError.value = ''
+  function onOutputModeChange(v: string) {
     store.setConfig('output_mode', v)
   }
 </script>
@@ -212,47 +171,10 @@
       <NSelect
         :value="outputModeValue"
         :options="outputModeOptionsComputed"
-        :loading="gamepadChecking"
         size="small"
         style="width: 200px"
         @update:value="onOutputModeChange"
       />
-      <NAlert
-        v-if="gamepadCheckError"
-        type="error"
-        :title="gamepadCheckError"
-        style="margin-top: 10px"
-      >
-        <template #default>
-          <NFlex vertical :size="8">
-            <NText depth="3" style="font-size: 12px">
-              {{ t('extras.gamepadCheckFailedHint', { url: vigembusUrl }) }}
-            </NText>
-            <NButton type="primary" size="small" @click="onInstallDriver">
-              {{ t('extras.installDriver') }}
-            </NButton>
-          </NFlex>
-        </template>
-      </NAlert>
-      <template v-if="outputModeValue === 'gamepad'">
-        <NText depth="3" style="font-size: 12px; display: block; margin: 12px 0 8px">
-          {{ t('extras.gamepadButtonHint') }}
-        </NText>
-        <NGrid :cols="2" :x-gap="16" :y-gap="10">
-          <NGridItem v-for="g1 in gamepadButtonFields" :key="g1.key">
-            <NFlex justify="space-between" align="center" :size="8">
-              <NText>{{ t(`extras.${g1.i18nKey}`) }}</NText>
-              <NSelect
-                :value="configText(g1.key) || g1.placeholder"
-                :options="gamepadButtonOptions.map((o) => ({ label: o.label, value: o.value }))"
-                size="small"
-                style="width: 140px"
-                @update:value="(v: string) => store.setConfig(g1.key, v)"
-              />
-            </NFlex>
-          </NGridItem>
-        </NGrid>
-      </template>
       <template v-if="outputModeValue === 'vjoy'">
         <NText depth="3" style="font-size: 12px; display: block; margin: 12px 0 8px">
           {{ t('extras.vjoyHint') }}

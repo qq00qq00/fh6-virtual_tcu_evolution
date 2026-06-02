@@ -5,8 +5,6 @@ import { useTcuStore } from '@virtual-tcu/shared/composables/useTcuStore'
 import { DRIVE_MODES } from '@virtual-tcu/shared/config/modes'
 import {
   FEATURE_TOGGLES,
-  GAMEPAD_BUTTON_FIELDS,
-  GAMEPAD_BUTTON_OPTIONS,
   HOTKEY_FIELDS,
   OUTPUT_MODE_OPTIONS,
   SETTING_SLIDERS,
@@ -50,8 +48,6 @@ export function useSettingsApp() {
   const hotkeyFields = HOTKEY_FIELDS
   const shiftKeyFields = SHIFT_KEY_FIELDS
   const outputModeOptions = OUTPUT_MODE_OPTIONS
-  const gamepadButtonFields = GAMEPAD_BUTTON_FIELDS
-  const gamepadButtonOptions = GAMEPAD_BUTTON_OPTIONS
 
   const restartBackend = () => {
     const api = (window as unknown as { tcu?: { restartBackend?: () => Promise<void> } }).tcu
@@ -220,8 +216,6 @@ export function useSettingsApp() {
     hotkeyFields,
     shiftKeyFields,
     outputModeOptions,
-    gamepadButtonFields,
-    gamepadButtonOptions,
     networkDraftHost: network.draftHost,
     networkDraftWebPort: network.draftWebPort,
     networkDraftUdpPort: network.draftUdpPort,
@@ -252,16 +246,6 @@ export function useSettingsApp() {
     toggleHud,
     openGithub,
     updater,
-    store: {
-      ...store,
-      installViGEmBus: () => {
-        const api = (
-          window as unknown as {
-            tcu?: { installViGEmBus?: () => Promise<{ ok: boolean; error?: string }> }
-          }
-        ).tcu
-        api?.installViGEmBus?.()
-      },
-    },
+    store,
   }
 }
