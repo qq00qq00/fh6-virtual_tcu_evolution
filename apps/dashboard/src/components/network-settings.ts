@@ -1,6 +1,7 @@
 export {
   allowsBindHostInput,
   allowsPortInput,
+  allowsUdpHubTargetInput,
   allowsUdpHubTargetsInput,
   isValidBindHost,
   isValidUdpPort,

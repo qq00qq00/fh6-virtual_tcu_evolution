@@ -1,18 +1,24 @@
 import type { ConfigMap } from '../types/ws'
 import { computed, ref, watch } from 'vue'
+import {
+  allowsUdpHubTargetInput,
+  allowsUdpHubTargetsInput,
+  normalizeUdpHubTargetTag,
+  sanitizeUdpHubTargetTags,
+  serializeUdpHubTargets,
+  splitUdpHubTargets,
+  validateUdpHubTargetTag,
+  validateUdpHubTargetTags,
+} from '../utils/udpHubTargets'
 
-const UDP_HUB_TARGET_SPLIT_RE = /[\s,;]+/
-const UDP_HUB_TARGET_CHARS_RE = /^[\d\s,;:.]*$/
 const BIND_HOST_CHARS_RE = /^[\d.]*$/
 const PORT_CHARS_RE = /^\d{0,5}$/
 
 export function isValidBindHost(host: string): boolean {
   const h = host.trim()
-  if (h === '0.0.0.0' || h === '127.0.0.1')
-    return true
+  if (h === '0.0.0.0' || h === '127.0.0.1') return true
   const parts = h.split('.')
-  if (parts.length !== 4)
-    return false
+  if (parts.length !== 4) return false
   return parts.every((p) => {
     const n = Number(p)
     return Number.isInteger(n) && n >= 0 && n <= 255
@@ -35,64 +41,11 @@ export function allowsBindHostInput(value: string): boolean {
   return BIND_HOST_CHARS_RE.test(value)
 }
 
-export function allowsUdpHubTargetsInput(value: string): boolean {
-  return UDP_HUB_TARGET_CHARS_RE.test(value)
-}
+export { allowsUdpHubTargetInput, allowsUdpHubTargetsInput }
 
-function isValidTargetHost(host: string): boolean {
-  const h = host.trim().toLowerCase()
-  if (h === 'localhost')
-    return true
-  if (isValidBindHost(h))
-    return true
-  const labels = h.split('.')
-  return labels.every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
-}
-
-function parseUdpHubTarget(entry: string): { host: string, port: number } | null {
-  const item = entry.trim()
-  if (!item)
-    return null
-
-  const splitAt = item.lastIndexOf(':')
-  const hasHost = splitAt >= 0
-  const hostText = hasHost ? item.slice(0, splitAt) : '127.0.0.1'
-  const portText = hasHost ? item.slice(splitAt + 1) : item
-  const host = (hostText || '127.0.0.1').trim()
-  const port = Number(portText.trim())
-  if (!host || !isValidTargetHost(host) || !isValidUdpPort(port))
-    return null
-  return { host, port }
-}
-
-function validateUdpHubTargets(
-  rawTargets: string,
-  udpPort: number,
-  enabled: boolean,
-): '' | 'invalidUdpHubTargets' | 'udpHubTargetLoop' {
-  const raw = rawTargets.trim()
-  if (!raw)
-    return enabled ? 'invalidUdpHubTargets' : ''
-  if (!allowsUdpHubTargetsInput(raw))
-    return 'invalidUdpHubTargets'
-
-  const entries = raw.split(UDP_HUB_TARGET_SPLIT_RE).filter(Boolean)
-  if (!entries.length)
-    return enabled ? 'invalidUdpHubTargets' : ''
-
-  for (const entry of entries) {
-    const target = parseUdpHubTarget(entry)
-    if (!target)
-      return 'invalidUdpHubTargets'
-    const host = target.host.toLowerCase()
-    if (
-      target.port === udpPort
-      && (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0')
-    ) {
-      return 'udpHubTargetLoop'
-    }
-  }
-  return ''
+function tagsEqual(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((tag, i) => tag === b[i])
 }
 
 export function useNetworkSettings(config: () => ConfigMap) {
@@ -100,7 +53,8 @@ export function useNetworkSettings(config: () => ConfigMap) {
   const draftWebPort = ref('')
   const draftUdpPort = ref('')
   const draftUdpHubEnabled = ref(false)
-  const draftUdpHubTargets = ref('')
+  const draftUdpHubTargetTags = ref<string[]>([])
+  const udpHubTagError = ref('')
   const applyError = ref('')
   const applyOk = ref(false)
 
@@ -109,20 +63,35 @@ export function useNetworkSettings(config: () => ConfigMap) {
     draftWebPort.value = String(config().web_port ?? 8765)
     draftUdpPort.value = String(config().udp_port ?? 5555)
     draftUdpHubEnabled.value = !!config().udp_hub_enabled
-    draftUdpHubTargets.value = String(config().udp_hub_targets ?? '')
+    draftUdpHubTargetTags.value = sanitizeUdpHubTargetTags(
+      splitUdpHubTargets(String(config().udp_hub_targets ?? '')),
+    )
+    udpHubTagError.value = ''
     applyError.value = ''
     applyOk.value = false
   }
 
   watch(config, syncFromConfig, { immediate: true, deep: true })
 
-  const dirty = computed(() =>
-    draftHost.value.trim() !== String(config().web_host ?? '')
-    || String(draftWebPort.value).trim() !== String(config().web_port ?? '')
-    || String(draftUdpPort.value).trim() !== String(config().udp_port ?? '')
-    || draftUdpHubEnabled.value !== !!config().udp_hub_enabled
-    || draftUdpHubTargets.value.trim() !== String(config().udp_hub_targets ?? '').trim(),
+  watch(draftUdpPort, () => {
+    if (!draftUdpHubEnabled.value) return
+    applyError.value = validateUdpHubTargetTags(draftUdpHubTargetTags.value, currentUdpPort(), true)
+  })
+
+  const savedHubTags = computed(() => splitUdpHubTargets(String(config().udp_hub_targets ?? '')))
+
+  const dirty = computed(
+    () =>
+      draftHost.value.trim() !== String(config().web_host ?? '') ||
+      String(draftWebPort.value).trim() !== String(config().web_port ?? '') ||
+      String(draftUdpPort.value).trim() !== String(config().udp_port ?? '') ||
+      draftUdpHubEnabled.value !== !!config().udp_hub_enabled ||
+      !tagsEqual(draftUdpHubTargetTags.value, savedHubTags.value),
   )
+
+  function currentUdpPort(): number {
+    return Number(draftUdpPort.value.trim())
+  }
 
   function validate(): {
     host: string
@@ -146,8 +115,8 @@ export function useNetworkSettings(config: () => ConfigMap) {
       applyError.value = 'invalidUdpPort'
       return null
     }
-    const hubError = validateUdpHubTargets(
-      draftUdpHubTargets.value,
+    const hubError = validateUdpHubTargetTags(
+      draftUdpHubTargetTags.value,
       udpPort,
       draftUdpHubEnabled.value,
     )
@@ -156,42 +125,61 @@ export function useNetworkSettings(config: () => ConfigMap) {
       return null
     }
     applyError.value = ''
+    udpHubTagError.value = ''
     return {
       host,
       webPort,
       udpPort,
       udpHubEnabled: draftUdpHubEnabled.value,
-      udpHubTargets: draftUdpHubTargets.value.trim(),
+      udpHubTargets: serializeUdpHubTargets(draftUdpHubTargetTags.value),
     }
   }
 
   function setUdpHubEnabled(value: boolean) {
-    if (value) {
-      const udpPort = Number(draftUdpPort.value.trim())
-      const hubError = validateUdpHubTargets(draftUdpHubTargets.value, udpPort, true)
-      if (hubError) {
-        applyError.value = hubError
-        draftUdpHubEnabled.value = false
-        return
-      }
+    udpHubTagError.value = ''
+    if (!value) {
+      applyError.value = ''
+      draftUdpHubEnabled.value = false
+      return
     }
-    applyError.value = ''
-    draftUdpHubEnabled.value = value
+    draftUdpHubEnabled.value = true
   }
 
-  function setUdpHubTargets(value: string) {
-    draftUdpHubTargets.value = value
+  function setUdpHubTargetTags(tags: unknown) {
+    const clean = sanitizeUdpHubTargetTags(tags)
+    draftUdpHubTargetTags.value = clean
+    udpHubTagError.value = ''
     if (draftUdpHubEnabled.value) {
-      const udpPort = Number(draftUdpPort.value.trim())
-      applyError.value = validateUdpHubTargets(value, udpPort, true)
+      applyError.value = validateUdpHubTargetTags(clean, currentUdpPort(), true)
     }
+  }
+
+  /** Return normalized tag string on success; `false` cancels (sanitized on update). */
+  function onCreateUdpHubTag(label: string): string | false {
+    const udpPort = currentUdpPort()
+    if (!isValidUdpPort(udpPort)) {
+      udpHubTagError.value = 'invalidUdpPort'
+      return false
+    }
+    const err = validateUdpHubTargetTag(label, udpPort, draftUdpHubTargetTags.value)
+    if (err) {
+      udpHubTagError.value = err
+      return false
+    }
+    const tag = normalizeUdpHubTargetTag(label)
+    if (!tag) {
+      udpHubTagError.value = 'invalidUdpHubTargets'
+      return false
+    }
+    udpHubTagError.value = ''
+    applyError.value = ''
+    return tag
   }
 
   function markApplyResult(ok: boolean, error = '') {
     applyOk.value = ok
     applyError.value = error
-    if (ok)
-      syncFromConfig()
+    if (ok) syncFromConfig()
   }
 
   return {
@@ -199,7 +187,8 @@ export function useNetworkSettings(config: () => ConfigMap) {
     draftWebPort,
     draftUdpPort,
     draftUdpHubEnabled,
-    draftUdpHubTargets,
+    draftUdpHubTargetTags,
+    udpHubTagError,
     dirty,
     applyError,
     applyOk,
@@ -207,9 +196,11 @@ export function useNetworkSettings(config: () => ConfigMap) {
     validate,
     allowsBindHostInput,
     allowsPortInput,
+    allowsUdpHubTargetInput,
     allowsUdpHubTargetsInput,
     setUdpHubEnabled,
-    setUdpHubTargets,
+    setUdpHubTargetTags,
+    onCreateUdpHubTag,
     markApplyResult,
   }
 }

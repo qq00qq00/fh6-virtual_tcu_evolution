@@ -1,11 +1,10 @@
 import asyncio
 import json
-import os
-import sys
 import time
 from pathlib import Path
 
 from virtual_tcu import paths
+from virtual_tcu.bootstrap import exec_restart
 from virtual_tcu.config.constants import DEFAULTS
 from virtual_tcu.config.store import ConfigStore
 from virtual_tcu.config.web_bind import (
@@ -175,7 +174,7 @@ class WebServer:
             await ws.send_json({"type": "restart_ack"})
             # Small delay so the WS frame is flushed before execv.
             await asyncio.sleep(0.1)
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            exec_restart()
 
         elif t == "import_profile":
             try:
@@ -260,7 +259,7 @@ class WebServer:
         )
         await ws.send_json({"type": "restart_ack"})
         await asyncio.sleep(0.1)
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+        exec_restart()
 
     async def _apply_network(self, msg: dict):
         host = msg.get("web_host", "")

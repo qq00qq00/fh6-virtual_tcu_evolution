@@ -19,6 +19,7 @@
   } from 'naive-ui'
   import { computed, inject } from 'vue'
   import { settingsContextKey } from './context'
+  import UdpHubTargetsField from './UdpHubTargetsField.vue'
 
   const ctx = inject(settingsContextKey)!
   const {
@@ -32,16 +33,18 @@
     networkDraftWebPort,
     networkDraftUdpPort,
     networkDraftUdpHubEnabled,
-    networkDraftUdpHubTargets,
+    networkDraftUdpHubTargetTags,
+    networkUdpHubTagError,
     networkDirty,
     networkApplyError,
     networkApplyOk,
     networkApplying,
     allowsNetworkBindHostInput,
     allowsNetworkPortInput,
-    allowsNetworkUdpHubTargetsInput,
+    allowsNetworkUdpHubTargetInput,
     setNetworkUdpHubEnabled,
-    setNetworkUdpHubTargets,
+    setNetworkUdpHubTargetTags,
+    onNetworkUdpHubTagCreate,
     applyNetworkSettings,
     onExportProfile,
     onOpenImport,
@@ -119,29 +122,20 @@
       <NText depth="3" style="font-size: 11px; display: block; margin-top: 8px">
         {{ t('extras.udpPortHint') }}
       </NText>
-      <NFlex vertical :size="10" style="margin-top: 12px">
-        <NFlex justify="space-between" align="center" :size="8">
-          <NText>{{ t('extras.udpHubEnabled') }}</NText>
-          <NSwitch
-            :value="networkDraftUdpHubEnabled"
-            @update:value="setNetworkUdpHubEnabled"
-          />
-        </NFlex>
-        <NFlex justify="space-between" align="center" :size="8">
-          <NText>{{ t('extras.udpHubTargets') }}</NText>
-          <NInput
-            :value="networkDraftUdpHubTargets"
-            :placeholder="t('extras.udpHubTargetsPlaceholder')"
-            :allow-input="allowsNetworkUdpHubTargetsInput"
-            size="small"
-            style="width: 260px; font-family: ui-monospace, monospace"
-            @update:value="setNetworkUdpHubTargets"
-          />
-        </NFlex>
-      </NFlex>
-      <NText depth="3" style="font-size: 11px; display: block; margin-top: 8px">
-        {{ t('extras.udpHubHint') }}
-      </NText>
+      <UdpHubTargetsField
+        style="margin-top: 12px"
+        :enabled="networkDraftUdpHubEnabled"
+        :tags="networkDraftUdpHubTargetTags"
+        :tag-error="networkUdpHubTagError"
+        :allows-input="allowsNetworkUdpHubTargetInput"
+        :on-create-tag="onNetworkUdpHubTagCreate"
+        :enabled-label="t('extras.udpHubEnabled')"
+        :targets-label="t('extras.udpHubTargets')"
+        :placeholder="t('extras.udpHubTargetsPlaceholder')"
+        :hint="t('extras.udpHubHint')"
+        @update:enabled="setNetworkUdpHubEnabled"
+        @update:tags="setNetworkUdpHubTargetTags"
+      />
       <NFlex :size="8" align="center" style="margin-top: 12px">
         <NButton
           type="primary"

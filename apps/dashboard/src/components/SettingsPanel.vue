@@ -3,6 +3,7 @@
   import type { SessionStats, ShiftHistoryItem, TelemetrySnapshot } from '@/types/telemetry'
   import type { ConfigMap } from '@/types/ws'
   import { HUD_TEMPLATES } from '@virtual-tcu/shared/config/hud'
+  import UdpHubTargetsField from '@virtual-tcu/ui/settings/UdpHubTargetsField.vue'
   import {
     NButton,
     NCard,
@@ -99,14 +100,16 @@
     draftWebPort: networkDraftWebPort,
     draftUdpPort: networkDraftUdpPort,
     draftUdpHubEnabled: networkDraftUdpHubEnabled,
-    draftUdpHubTargets: networkDraftUdpHubTargets,
+    draftUdpHubTargetTags: networkDraftUdpHubTargetTags,
+    udpHubTagError: networkUdpHubTagError,
     dirty: networkDirty,
     applyError: networkApplyError,
     allowsBindHostInput: allowsNetworkBindHostInput,
     allowsPortInput: allowsNetworkPortInput,
-    allowsUdpHubTargetsInput: allowsNetworkUdpHubTargetsInput,
+    allowsUdpHubTargetInput: allowsNetworkUdpHubTargetInput,
     setUdpHubEnabled: setNetworkUdpHubEnabled,
-    setUdpHubTargets: setNetworkUdpHubTargets,
+    setUdpHubTargetTags: setNetworkUdpHubTargetTags,
+    onCreateUdpHubTag: onNetworkUdpHubTagCreate,
     validate: validateNetwork,
   } = useNetworkSettings(() => config.value)
 
@@ -363,29 +366,20 @@
               <NText depth="3" style="font-size: 11px; display: block; margin-top: 8px">
                 {{ $t('extras.udpPortHint') }}
               </NText>
-              <NFlex vertical :size="10" style="margin-top: 12px">
-                <NFlex justify="space-between" align="center" :size="8">
-                  <NText>{{ $t('extras.udpHubEnabled') }}</NText>
-                  <NSwitch
-                    :value="networkDraftUdpHubEnabled"
-                    @update:value="setNetworkUdpHubEnabled"
-                  />
-                </NFlex>
-                <NFlex justify="space-between" align="center" :size="8">
-                  <NText>{{ $t('extras.udpHubTargets') }}</NText>
-                  <NInput
-                    :value="networkDraftUdpHubTargets"
-                    :placeholder="$t('extras.udpHubTargetsPlaceholder')"
-                    :allow-input="allowsNetworkUdpHubTargetsInput"
-                    size="small"
-                    style="width: 220px; font-family: ui-monospace, monospace"
-                    @update:value="setNetworkUdpHubTargets"
-                  />
-                </NFlex>
-              </NFlex>
-              <NText depth="3" style="font-size: 11px; display: block; margin-top: 8px">
-                {{ $t('extras.udpHubHint') }}
-              </NText>
+              <UdpHubTargetsField
+                style="margin-top: 12px"
+                :enabled="networkDraftUdpHubEnabled"
+                :tags="networkDraftUdpHubTargetTags"
+                :tag-error="networkUdpHubTagError"
+                :allows-input="allowsNetworkUdpHubTargetInput"
+                :on-create-tag="onNetworkUdpHubTagCreate"
+                :enabled-label="$t('extras.udpHubEnabled')"
+                :targets-label="$t('extras.udpHubTargets')"
+                :placeholder="$t('extras.udpHubTargetsPlaceholder')"
+                :hint="$t('extras.udpHubHint')"
+                @update:enabled="setNetworkUdpHubEnabled"
+                @update:tags="setNetworkUdpHubTargetTags"
+              />
               <NFlex :size="8" align="center" style="margin-top: 12px">
                 <NButton
                   type="primary"

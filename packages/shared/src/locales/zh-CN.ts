@@ -243,10 +243,10 @@ export default {
     udpPort: '遥测 UDP 端口',
     udpPortHint: 'Forza 设置 → 隐私与在线 → 遥测 → Car Dash 数据输出端口（默认 5555）',
     udpHubEnabled: '转发遥测给设备',
-    udpHubTargets: 'UDP Hub 目标',
-    udpHubTargetsPlaceholder: '127.0.0.1:5556, 192.168.1.50:5555',
+    udpHubTargets: '转发目标（host:port）',
+    udpHubTargetsPlaceholder: '127.0.0.1:5556',
     udpHubHint:
-      '可选：将 FH6 原始遥测包转发给力反馈手柄或伴随应用。格式为 host:port，多个目标用逗号分隔。',
+      '可选：将 FH6 原始遥测包转发给力反馈手柄或伴随应用。开启后点击输入框添加目标，按 Enter 确认；保存时一并应用并重启后端。',
     networkApply: '确定',
     networkApplyOk: '已生效',
     networkErrors: {
@@ -258,6 +258,7 @@ export default {
       invalid_port: '端口无效',
       invalidUdpPort: 'UDP 端口无效（1–65535）',
       invalidUdpHubTargets: 'UDP Hub 目标格式无效',
+      udpHubDuplicate: '该目标已存在',
       udpHubTargetLoop: 'UDP Hub 目标不能指向当前遥测输入端口',
       invalid_udp_hub_targets: 'UDP Hub 目标格式无效',
       udp_bind_failed: 'UDP 端口绑定失败，可能已被占用',

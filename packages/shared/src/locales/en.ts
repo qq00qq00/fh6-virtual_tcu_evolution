@@ -246,10 +246,10 @@ export default {
     udpPortHint:
       'FH6 Settings → Privacy & Online → Telemetry → Car Dash data out port (default 5555)',
     udpHubEnabled: 'Forward telemetry to devices',
-    udpHubTargets: 'UDP hub targets',
-    udpHubTargetsPlaceholder: '127.0.0.1:5556, 192.168.1.50:5555',
+    udpHubTargets: 'Forward targets (host:port)',
+    udpHubTargetsPlaceholder: '127.0.0.1:5556',
     udpHubHint:
-      'Optional: forward raw FH6 telemetry packets to force-feedback controllers or companion apps. Use host:port, separated by commas.',
+      'Optional: forward raw FH6 telemetry to companion apps. When enabled, add each host:port as a tag and press Enter; Apply saves and restarts the backend.',
     networkApply: 'Apply',
     networkApplyOk: 'Applied',
     networkErrors: {
@@ -261,6 +261,7 @@ export default {
       invalid_port: 'Invalid port',
       invalidUdpPort: 'Invalid UDP port (1–65535)',
       invalidUdpHubTargets: 'Invalid UDP hub target format',
+      udpHubDuplicate: 'Target already added',
       udpHubTargetLoop: 'UDP hub target cannot point back to the telemetry input port',
       invalid_udp_hub_targets: 'Invalid UDP hub target format',
       udp_bind_failed: 'UDP bind failed — port may be in use',

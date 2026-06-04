@@ -23,6 +23,8 @@ addopts = "-q"
 line-length = 100
 target-version = "py312"
 src = ["virtual_tcu"]
+# Third-party / tooling trees (ESLint already ignores .cursor/** in eslint.config.ts)
+extend-exclude = [".cursor", ".claude"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
