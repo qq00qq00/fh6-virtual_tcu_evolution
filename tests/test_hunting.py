@@ -50,9 +50,7 @@ def test_no_hunting_at_wot_near_power_band_edge(make_logic, out, clock):
     """Full-throttle cruise at a speed where gear 3 would be near/above the
     upshift threshold — the TCU must not oscillate between gears."""
     tcu = make_logic("RACE", seed_ratios=False)
-    tcu._calibrator.load(
-        CAR_KEY, {"ratios": _RATIOS, "counts": {g: 80 for g in _RATIOS}}
-    )
+    tcu._calibrator.load(CAR_KEY, {"ratios": _RATIOS, "counts": {g: 80 for g in _RATIOS}})
     _seed_power_curve(tcu, CAR_KEY)
 
     # Gear 4 @ 110 km/h: rpm = 50 * 110 = 5500 / 9200 ≈ 0.598 (just under
@@ -91,9 +89,7 @@ def test_no_hunting_at_wot_near_power_band_edge(make_logic, out, clock):
 def test_band_down_blocked_near_upshift_threshold(make_logic, out, clock):
     """BAND DOWN (out-of-band kickdown) must also respect the anti-hunt guard."""
     tcu = make_logic("OFFROAD", seed_ratios=False)
-    tcu._calibrator.load(
-        CAR_KEY, {"ratios": _RATIOS, "counts": {g: 80 for g in _RATIOS}}
-    )
+    tcu._calibrator.load(CAR_KEY, {"ratios": _RATIOS, "counts": {g: 80 for g in _RATIOS}})
     _seed_power_curve(tcu, CAR_KEY)
 
     # Gear 4 @ 110 km/h, throttle=0.65 (above kickdown gate 0.60).
@@ -104,7 +100,7 @@ def test_band_down_blocked_near_upshift_threshold(make_logic, out, clock):
         gear=4,
         current_rpm=int(0.46 * _MAX_RPM),
         engine_max_rpm=_MAX_RPM,
-        speed_ms=80.0 / 3.6,       # 80 km/h: gear 3 = 66*80/9200 ≈ 0.574
+        speed_ms=80.0 / 3.6,  # 80 km/h: gear 3 = 66*80/9200 ≈ 0.574
         accel_raw=int(0.65 * 255),
         brake_raw=0,
     )

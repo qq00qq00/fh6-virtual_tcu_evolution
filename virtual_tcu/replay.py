@@ -31,22 +31,27 @@ def analyze_shift_latency(paths: list[Path], out: TextIO) -> None:
             self.last_shift_time: float | None = None
 
         @property
-        def key_up(self) -> str: return "e"
+        def key_up(self) -> str:
+            return "e"
 
         @property
-        def key_down(self) -> str: return "q"
+        def key_down(self) -> str:
+            return "q"
 
-        def is_self_press(self, key: str) -> bool: return False
+        def is_self_press(self, key: str) -> bool:
+            return False
 
         def shift_to(self, from_gear: int, target_gear: int):
             # Record time in the same clock domain as rel_ms/clock.now.
             self.last_shift_time = self._clock.now
 
-        def shutdown(self): pass
+        def shutdown(self):
+            pass
 
     class MockClock:
         def __init__(self):
             self.now = 0.0
+
         def __call__(self):
             return self.now
 
@@ -62,6 +67,7 @@ def analyze_shift_latency(paths: list[Path], out: TextIO) -> None:
         tcu = TCULogic(mock_out, prof, cfg, TelemetryLogger())
 
         import virtual_tcu.logic.tcu
+
         original_time = virtual_tcu.logic.tcu.time.time
         virtual_tcu.logic.tcu.time.time = clock
         latencies = []
@@ -74,7 +80,7 @@ def analyze_shift_latency(paths: list[Path], out: TextIO) -> None:
                 if t is None:
                     continue
                 clock.now = rel_ms / 1000.0
-                
+
                 # Check for gear change
                 if prev_gear is not None and t.gear != prev_gear and pending_shift_time is not None:
                     latencies.append((clock.now - pending_shift_time) * 1000.0)
@@ -82,7 +88,7 @@ def analyze_shift_latency(paths: list[Path], out: TextIO) -> None:
 
                 mock_out.last_shift_time = None
                 tcu.process(t)
-                
+
                 if mock_out.last_shift_time is not None:
                     pending_shift_time = mock_out.last_shift_time
 
@@ -104,6 +110,7 @@ def analyze_shift_latency(paths: list[Path], out: TextIO) -> None:
             virtual_tcu.logic.tcu.time.time = original_time
 
     out.write("==================================\n\n")
+
 
 def _gear_label(gear: int) -> str:
     if gear == 0:

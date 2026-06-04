@@ -81,6 +81,7 @@ class TCULogic:
 
         self._reverse_lock_until = 0.0
         self._current_car_key: tuple | None = None
+        self._was_race_on = False
 
         self._reverse_hold = ReverseHoldDetector(kb)
         self._calibrator = GearRatioCalibrator()
@@ -213,10 +214,10 @@ class TCULogic:
                 pass
         self._paddle_keys = ("", "")
 
-    def _ensure_driving_log(self):
+    def _ensure_driving_log(self, td: Telemetry):
         """Lazily start the driving log CSV on first event."""
         if not self._driving_log.is_active:
-            self._driving_log.start()
+            self._driving_log.start(car_ordinal=td.car_ordinal)
 
     def refresh_shift_keys(self):
         if Cfg.REVERSE_HOLD_MS > 0:
@@ -351,6 +352,14 @@ class TCULogic:
     def _process_internal(self, td: Telemetry, raw_packet: bytes | None):
         now = time.time()
 
+        is_race_now = bool(td.is_race_on)
+        if self._config.get("feat_driving_log"):
+            if is_race_now and not self._was_race_on:
+                self._driving_log.start(car_ordinal=td.car_ordinal)
+            elif not is_race_now and self._was_race_on:
+                self._driving_log.stop()
+        self._was_race_on = is_race_now
+
         dt = now - self._last_packet_time if self._last_packet_time > 0.0 else 0.016
         dt = max(0.001, min(dt, 0.100))
 
@@ -391,7 +400,7 @@ class TCULogic:
                 # Record manual intervention in driving log
                 if self._config.get("feat_driving_log"):
                     manual_action = "MANUAL_UP" if td.gear > self._prev_gear else "MANUAL_DOWN"
-                    self._ensure_driving_log()
+                    self._ensure_driving_log(td)
                     self._driving_log.log_event(
                         manual_action,
                         td,
@@ -620,7 +629,7 @@ class TCULogic:
         self._shift_history.record("UP", td, reason=state, rule=self.mode.value, sent_at=now)
         self._session_stats.record_shift("UP", state)
         if self._config.get("feat_driving_log"):
-            self._ensure_driving_log()
+            self._ensure_driving_log(td)
             self._driving_log.log_event(
                 "AUTO_UP",
                 td,
@@ -684,7 +693,7 @@ class TCULogic:
         self._shift_history.record("DOWN", td, reason=state, rule=self.mode.value, sent_at=now)
         self._session_stats.record_shift("DOWN", state)
         if self._config.get("feat_driving_log"):
-            self._ensure_driving_log()
+            self._ensure_driving_log(td)
             self._driving_log.log_event(
                 "AUTO_DOWN",
                 td,
@@ -734,7 +743,7 @@ class TCULogic:
         self._session_stats.record_shift("DOWN", "BRAKE DOWN")
         self._session_stats.record_shift("DOWN", "BRAKE DOWN")
         if self._config.get("feat_driving_log"):
-            self._ensure_driving_log()
+            self._ensure_driving_log(td)
             self._driving_log.log_event(
                 "AUTO_DOUBLE_DOWN",
                 td,

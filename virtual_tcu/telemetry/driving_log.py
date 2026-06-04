@@ -21,6 +21,7 @@ from virtual_tcu.telemetry.model import Telemetry
 _COLUMNS: list[str] = [
     "timestamp",
     "session_time_s",
+    "game_timestamp_ms",
     "action",
     "gear_before",
     "gear_after",
@@ -98,12 +99,16 @@ class DrivingLogger:
             "file": self._path.name if self._path else None,
         }
 
-    def start(self) -> bool:
+    def start(self, car_ordinal: int = 0) -> bool:
         """Open a new CSV log file.  Returns *True* on success."""
         if self.is_active:
             self.stop()
         ts = time.strftime("%Y%m%d_%H%M%S")
-        path = paths.log_dir() / f"driving_log_{ts}.csv"
+        if car_ordinal > 0:
+            filename = f"driving_log_car{car_ordinal}_{ts}.csv"
+        else:
+            filename = f"driving_log_{ts}.csv"
+        path = paths.log_dir() / filename
         try:
             f = open(path, "w", newline="", encoding="utf-8-sig")  # noqa: SIM115
             writer = csv.writer(f)
@@ -183,6 +188,7 @@ class DrivingLogger:
         row = [
             round(now, 3),
             session_t,
+            td.session_timestamp,
             action,
             gear_before,
             gear_after,
