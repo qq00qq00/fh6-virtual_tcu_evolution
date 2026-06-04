@@ -1,18 +1,9 @@
 <script setup lang="ts">
-  import type { LogStatus, TelemetrySnapshot } from '@virtual-tcu/shared/types/telemetry'
+  import type { TelemetrySnapshot } from '@virtual-tcu/shared/types/telemetry'
   import { DRIVE_MODES } from '@virtual-tcu/shared/config/modes'
   import { modeBtnClass, REGIME_PILL } from '@virtual-tcu/shared/utils/mode-colors'
   import { toRefs } from 'vue'
-  import {
-    actionBtn,
-    actionBtnDanger,
-    actionBtnPrimary,
-    badgeCalibrated,
-    badgeLearning,
-    cardSm,
-    col,
-    sectionTitle,
-  } from '../styles/ui'
+  import { badgeCalibrated, badgeLearning, cardSm, col, sectionTitle } from '../styles/ui'
   import { useModeSidebar } from './mode-sidebar'
 
   const props = withDefaults(
@@ -21,22 +12,18 @@
       shiftCount: number
       packetsTotal: number
       telemetry?: TelemetrySnapshot | null
-      logStatus?: LogStatus | null
       interactive?: boolean
     }>(),
     {
       telemetry: null,
-      logStatus: null,
       interactive: true,
     },
   )
   const emit = defineEmits<{
     setMode: [mode: string]
-    logStart: [mode: string]
-    logStop: []
   }>()
 
-  const { telemetry, logStatus, interactive } = toRefs(props)
+  const { telemetry, interactive } = toRefs(props)
   const {
     sportIndex,
     sportBarWidth,
@@ -47,12 +34,9 @@
     peakPowerText,
     peakRpm,
     peakG,
-    logMode,
-    logSize,
-  } = useModeSidebar(telemetry, logStatus)
+  } = useModeSidebar(telemetry)
 
   const isCalibrated = () => !!telemetry.value?.calibrated
-  const isRecording = () => !!logStatus.value?.recording
 </script>
 
 <template>
@@ -170,60 +154,6 @@
       <div class="text-tcu-txt-dim mt-1.5 text-[10px] leading-snug">
         {{ $t('powerBand.hint') }}
       </div>
-    </div>
-
-    <h3 class="mt-6" :class="[sectionTitle]">
-      {{ $t('logger.title') }}
-    </h3>
-    <div class="bg-tcu-bg-1 text-tcu-txt-muted mb-2 rounded-md p-2.5 text-xs">
-      <div class="mb-1 flex justify-between">
-        <span>{{ $t('logger.status') }}:</span>
-        <span :class="isRecording() && 'text-danger font-semibold before:content-[\'●_\']'">
-          {{ isRecording() ? $t('logger.recording') : $t('logger.stopped') }}
-        </span>
-      </div>
-      <div class="mb-1 flex justify-between">
-        <span>{{ $t('logger.mode') }}:</span><span>{{ logMode }}</span>
-      </div>
-      <div class="mb-1 flex justify-between">
-        <span>{{ $t('logger.packets') }}:</span><span>{{ logStatus?.packets ?? 0 }}</span>
-      </div>
-      <div class="flex justify-between">
-        <span>{{ $t('logger.size') }}:</span><span>{{ logSize }}</span>
-      </div>
-    </div>
-    <button
-      v-if="interactive"
-      type="button"
-      :class="actionBtnPrimary"
-      :disabled="logStatus?.recording"
-      @click="emit('logStart', 'events')"
-    >
-      {{ $t('logger.startEvents') }}
-    </button>
-    <button
-      v-if="interactive"
-      type="button"
-      :class="actionBtn"
-      :disabled="logStatus?.recording"
-      @click="emit('logStart', 'all')"
-    >
-      {{ $t('logger.startAll') }}
-    </button>
-    <button
-      v-if="interactive"
-      type="button"
-      :class="actionBtnDanger"
-      :disabled="!logStatus?.recording"
-      @click="emit('logStop')"
-    >
-      {{ $t('logger.stop') }}
-    </button>
-    <div v-if="!interactive" class="text-tcu-txt-dim text-[10px] leading-snug">
-      {{ $t('logger.viewOnlyHint') }}
-    </div>
-    <div v-if="interactive" class="text-tcu-txt-dim mt-1 text-[10px] leading-snug">
-      {{ $t('logger.hint') }}
     </div>
 
     <h3 class="mt-6" :class="[sectionTitle]">

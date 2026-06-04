@@ -25,6 +25,10 @@ class TeeStdout:
         with self._lock:
             self._listeners.append(callback)
 
+    def snapshot(self) -> list[dict]:
+        with self._lock:
+            return list(self._buffer)
+
     def remove_listener(self, callback):
         with self._lock:
             if callback in self._listeners:

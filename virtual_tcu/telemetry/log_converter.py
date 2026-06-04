@@ -130,6 +130,7 @@ def convert_replay(
     Supported formats:
     - 'bin.gz': no conversion needed (returns empty list)
     - 'csv': auto-split by race segment
+    - 'csv_chart': HTML chart per segment (no CSV kept)
     - 'json': single JSON array file
     - 'jsonl': one JSON object per line
     - 'summary': text summary
@@ -144,6 +145,17 @@ def convert_replay(
         stem = stem[:-4]
     if stem.startswith("tcu_"):
         stem = stem[4:]
+
+    if fmt == "csv_chart":
+        from virtual_tcu.telemetry.snapshot_chart import render_chart_html
+
+        html_files: list[Path] = []
+        for csv_path in convert_replay_csv_split(bin_gz_path, base_name=stem):
+            html_path = csv_path.with_name(f"{csv_path.stem}.chart.html")
+            chart = render_chart_html(csv_path, out_path=html_path, delete_source=True)
+            if chart is not None:
+                html_files.append(chart)
+        return html_files
 
     if fmt == "csv":
         return convert_replay_csv_split(bin_gz_path, base_name=stem)

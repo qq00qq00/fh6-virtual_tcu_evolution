@@ -43,7 +43,14 @@ export interface SettingsContext {
     telemetry: Ref<Record<string, unknown> | null>
     sessionStats: Ref<Record<string, unknown> | null>
     shiftHistory: Ref<Array<Record<string, unknown>>>
-    logStatus: Ref<{ recording: boolean; packets: number; size_kb: number } | null>
+    logStatus: Ref<{
+      recording: boolean
+      mode: string
+      packets: number
+      size_kb: number
+      file?: string | null
+      format?: string
+    } | null>
     packetsTotal: Ref<number>
     systemLogs: Ref<Array<{ time: number; level: string; msg: string }>>
     telemetryLogs: Ref<Array<{ time: number; reason: string; filename: string }>>
@@ -85,7 +92,8 @@ export interface SettingsContext {
   networkApplying: Ref<boolean>
   applyNetworkSettings: () => void
   onLogStart: (mode: 'events' | 'all') => void
-  onLogStop: () => void
+  onLogStop: (saveAs?: 'file' | 'fusion_snapshot') => void
+  onTriggerFusionSnapshot: () => void
   onExportProfile: () => void
   onOpenImport: () => void
   openDashboard: () => void

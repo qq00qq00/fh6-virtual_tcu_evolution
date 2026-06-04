@@ -343,7 +343,7 @@ class TCULogic:
     def process(self, td: Telemetry, raw_packet: bytes | None = None):
         with self._data_lock:
             self._process_internal(td, raw_packet)
-            if self._config.get("feat_fusion_logger"):
+            if self._config.get("feat_fusion_logger") or self._logger.is_recording:
                 self._fusion_logger.push(td, self.snapshot(td))
 
     def _process_internal(self, td: Telemetry, raw_packet: bytes | None):
@@ -1511,3 +1511,6 @@ class TCULogic:
     def trigger_fusion_snapshot(self, reason: str):
         if self._config.get("feat_fusion_logger"):
             self._fusion_logger.trigger_snapshot(reason)
+
+    def dump_fusion_snapshot(self, reason: str) -> str | None:
+        return self._fusion_logger.dump_snapshot(reason)

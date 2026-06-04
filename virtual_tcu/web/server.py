@@ -17,6 +17,7 @@ from virtual_tcu.config.web_bind import (
 from virtual_tcu.deps import WSMsgType, web
 from virtual_tcu.input.vjoy_output import VJoyOutput
 from virtual_tcu.logic.tcu import TCULogic
+from virtual_tcu.telemetry.log_capture import log_capture
 from virtual_tcu.telemetry.logger import TelemetryLogger
 from virtual_tcu.telemetry.receiver import TelemetryReceiver
 
@@ -92,6 +93,7 @@ class WebServer:
                         "config": self._config.data,
                         "defaults": DEFAULTS,
                         "log_status": self._logger.status,
+                        "system_logs": log_capture.snapshot(),
                         "web_urls": network_status(self._config),
                         "effective_output_mode": (
                             "vjoy" if isinstance(self._tcu._kb, VJoyOutput) else "keyboard"
@@ -151,15 +153,28 @@ class WebServer:
             await ws.send_json({"type": "config_reset", "data": self._config.data})
         elif t == "log_start":
             mode = msg.get("mode", "events")
-            self._logger.start(mode)
+            output_format = msg.get("format", self._config.get("log_output_format", "bin.gz"))
+            if isinstance(output_format, str):
+                self._config.set("log_output_format", output_format)
+            self._logger.start(mode, str(output_format))
+            chart_on_save = str(output_format).lower() == "csv_chart"
+            self._tcu._fusion_logger.set_chart_on_save(chart_on_save)
             await ws.send_json({"type": "log_status", "data": self._logger.status})
         elif t == "log_stop":
-            path = self._logger.stop()
+            save_as = msg.get("save_as", "file")
+            if save_as == "fusion_snapshot":
+                fmt = str(self._config.get("log_output_format", "bin.gz")).lower()
+                self._tcu._fusion_logger.set_chart_on_save(fmt == "csv_chart")
+                filename = self._tcu.dump_fusion_snapshot(str(msg.get("reason", "manual_dump")))
+                self._logger.stop(discard=True)
+                path = str(paths.log_dir() / filename) if filename else None
+            else:
+                path = self._logger.stop()
             await ws.send_json(
                 {"type": "log_status", "data": self._logger.status, "last_file": path}
             )
-            # Post-processing: convert to user-selected format if not bin.gz
-            if path:
+            # Async conversion when a raw .bin.gz capture is kept (upstream log_converter).
+            if path and save_as != "fusion_snapshot":
                 fmt = str(self._config.get("log_output_format", "bin.gz"))
                 if fmt != "bin.gz":
                     from pathlib import Path as _Path
@@ -167,29 +182,34 @@ class WebServer:
                     from virtual_tcu.telemetry.log_converter import convert_replay_async
 
                     bin_path = _Path(path)
-                    loop = asyncio.get_running_loop()
+                    if bin_path.suffix == ".gz":
+                        loop = asyncio.get_running_loop()
 
-                    def _on_done(files):
-                        names = [f.name for f in files]
-                        msg = {
-                            "type": "log_conversion",
-                            "ok": True,
-                            "format": fmt,
-                            "files": names,
-                        }
-                        print(f"[LogConverter] Converted to {fmt}: {names}")
-                        asyncio.run_coroutine_threadsafe(self._broadcast_json(msg), loop)
+                        def _on_done(files):
+                            names = [f.name for f in files]
+                            msg = {
+                                "type": "log_conversion",
+                                "ok": True,
+                                "format": fmt,
+                                "files": names,
+                            }
+                            print(f"[LogConverter] Converted to {fmt}: {names}")
+                            asyncio.run_coroutine_threadsafe(self._broadcast_json(msg), loop)
 
-                    def _on_error(e):
-                        msg = {
-                            "type": "log_conversion",
-                            "ok": False,
-                            "format": fmt,
-                            "error": str(e),
-                        }
-                        asyncio.run_coroutine_threadsafe(self._broadcast_json(msg), loop)
+                        def _on_error(e):
+                            msg = {
+                                "type": "log_conversion",
+                                "ok": False,
+                                "format": fmt,
+                                "error": str(e),
+                            }
+                            asyncio.run_coroutine_threadsafe(self._broadcast_json(msg), loop)
 
-                    convert_replay_async(bin_path, fmt, on_done=_on_done, on_error=_on_error)
+                        convert_replay_async(bin_path, fmt, on_done=_on_done, on_error=_on_error)
+        elif t == "trigger_fusion_snapshot":
+            fmt = str(self._config.get("log_output_format", "bin.gz")).lower()
+            self._tcu._fusion_logger.set_chart_on_save(fmt == "csv_chart")
+            self._tcu.dump_fusion_snapshot(str(msg.get("reason", "manual_dump")))
         elif t == "request_graph":
             await ws.send_json({"type": "graph_data", "data": self._tcu.snapshot_graph()})
         elif t == "export_profile":
@@ -431,20 +451,20 @@ class WebServer:
 
         loop = asyncio.get_running_loop()
 
-        from virtual_tcu.telemetry.log_capture import log_capture
-
         def on_sys_log(msg):
             asyncio.run_coroutine_threadsafe(self._broadcast_json(msg), loop)
 
         log_capture.add_listener(on_sys_log)
 
-        def on_fusion_snapshot(reason, filename):
-            asyncio.run_coroutine_threadsafe(
-                self._broadcast_json(
-                    {"type": "fusion_snapshot", "reason": reason, "filename": filename}
-                ),
-                loop,
-            )
+        def on_fusion_snapshot(reason, filename, chart_filename=None):
+            payload = {
+                "type": "fusion_snapshot",
+                "reason": reason,
+                "filename": filename,
+            }
+            if chart_filename:
+                payload["chart_filename"] = chart_filename
+            asyncio.run_coroutine_threadsafe(self._broadcast_json(payload), loop)
 
         self._tcu._fusion_logger.on_snapshot_created = on_fusion_snapshot
 

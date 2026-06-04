@@ -23,7 +23,8 @@ class FusionSnapshotLogger:
         self._current_snapshot_reason = None
         self._snapshot_buffer = []
 
-        self.on_snapshot_created = None  # Callback(reason, filename)
+        self.on_snapshot_created = None  # Callback(reason, filename, chart_filename | None)
+        self._chart_on_save = False
 
     def _get_fused_row(self, td: Telemetry, tcu_state: dict) -> dict:
         """Combine raw telemetry and TCU state into a single flat dict."""
@@ -82,22 +83,48 @@ class FusionSnapshotLogger:
         if not data:
             return
 
+        def _writer():
+            self._write_snapshot(reason, data)
+
+        threading.Thread(target=_writer, daemon=True).start()
+
+    def set_chart_on_save(self, enabled: bool) -> None:
+        self._chart_on_save = enabled
+
+    def dump_snapshot(self, reason: str) -> str | None:
+        """Write the current ring buffer immediately and return the filename."""
+        with self._lock:
+            data = list(self._buffer)
+        if not data:
+            return None
+        return self._write_snapshot(reason, data)
+
+    def _write_snapshot(self, reason: str, data: list[dict]) -> str | None:
         car_ordinal = data[0].get("car_ordinal", 0)
         ts = time.strftime("%Y%m%d_%H%M%S")
-        filename = f"snapshot_car{car_ordinal}_{ts}_{reason}.csv"
-        path = paths.log_dir() / filename
+        stem = f"snapshot_car{car_ordinal}_{ts}_{reason}"
 
-        def _writer():
-            try:
+        try:
+            if self._chart_on_save:
+                from virtual_tcu.telemetry.snapshot_chart import write_chart_html
+
+                filename = f"{stem}.chart.html"
+                path = paths.log_dir() / filename
+                rows = [{k: "" if v is None else str(v) for k, v in row.items()} for row in data]
+                if write_chart_html(rows, path, title=filename) is None:
+                    return None
+            else:
+                filename = f"{stem}.csv"
+                path = paths.log_dir() / filename
                 with open(path, "w", newline="", encoding="utf-8") as f:
                     writer = csv.DictWriter(f, fieldnames=list(data[0].keys()))
                     writer.writeheader()
                     writer.writerows(data)
 
-                print(f"[FusionLogger] Saved snapshot: {filename}")
-                if self.on_snapshot_created:
-                    self.on_snapshot_created(reason, filename)
-            except Exception as e:
-                print(f"[FusionLogger] Failed to save snapshot: {e}")
-
-        threading.Thread(target=_writer, daemon=True).start()
+            print(f"[FusionLogger] Saved snapshot: {filename}")
+            if self.on_snapshot_created:
+                self.on_snapshot_created(reason, filename, None)
+            return filename
+        except Exception as e:
+            print(f"[FusionLogger] Failed to save snapshot: {e}")
+            return None

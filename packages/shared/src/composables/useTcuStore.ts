@@ -71,6 +71,13 @@ export function useTcuStore() {
         shiftCount.value = msg.data.shift_count
         packetsTotal.value = msg.data.packets_total
         logStatus.value = msg.data.log_status
+        if (msg.data.system_logs) {
+          systemLogs.value = msg.data.system_logs.map((log) => ({
+            time: Date.now(),
+            level: log.level,
+            msg: log.msg,
+          }))
+        }
         webUrls.value = msg.data.web_urls ?? null
         effectiveOutputMode.value = msg.data.effective_output_mode ?? null
         uiMode.value = msg.data.ui_mode === 'full' ? 'full' : 'view_only'
@@ -179,12 +186,16 @@ export function useTcuStore() {
     send({ type: 'restart_backend' })
   }
 
-  function logStart(mode: 'events' | 'all') {
-    send({ type: 'log_start', mode })
+  function logStart(mode: 'events' | 'all', format?: string) {
+    send({ type: 'log_start', mode, format })
   }
 
-  function logStop() {
-    send({ type: 'log_stop' })
+  function logStop(saveAs: 'file' | 'fusion_snapshot' = 'file') {
+    send({ type: 'log_stop', save_as: saveAs, reason: 'manual_dump' })
+  }
+
+  function triggerFusionSnapshot(reason = 'manual_dump') {
+    send({ type: 'trigger_fusion_snapshot', reason })
   }
 
   function exportProfile() {
@@ -310,6 +321,7 @@ export function useTcuStore() {
     restartBackend,
     logStart,
     logStop,
+    triggerFusionSnapshot,
     exportProfile,
     openImportProfile,
     openModal,

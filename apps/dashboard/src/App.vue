@@ -33,6 +33,7 @@
     onRestartBackend,
     onLogStart,
     onLogStop,
+    onTriggerFusionSnapshot,
     onExportProfile,
     onOpenImport,
     onCloseModal,
@@ -50,11 +51,8 @@
         :shift-count="shiftCount"
         :packets-total="packetsTotal"
         :telemetry="telemetry"
-        :log-status="logStatus"
         :interactive="isFullUi"
         @set-mode="onSetMode"
-        @log-start="onLogStart"
-        @log-stop="onLogStop"
       />
       <DashboardPanel :live="live" :telemetry="telemetry" />
       <SettingsPanel
@@ -64,12 +62,16 @@
         :session-stats="sessionStats"
         :shift-history="shiftHistory"
         :watchdog-stuck="watchdogStuck"
+        :log-status="logStatus"
         :system-logs="systemLogs"
         :telemetry-logs="telemetryLogs"
         @set-config="onSetConfig"
         @apply-network="onApplyNetwork"
         @reset-config="onResetConfig"
         @restart-backend="onRestartBackend"
+        @log-start="onLogStart"
+        @log-stop="onLogStop"
+        @trigger-fusion-snapshot="onTriggerFusionSnapshot"
         @export-profile="onExportProfile"
         @open-import="onOpenImport"
       />

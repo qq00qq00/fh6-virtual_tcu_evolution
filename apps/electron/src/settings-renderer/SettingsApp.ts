@@ -159,11 +159,16 @@ export function useSettingsApp() {
   }
 
   function onLogStart(mode: 'events' | 'all') {
-    store.send({ type: 'log_start', mode })
+    const format = String(store.config.log_output_format ?? 'bin.gz')
+    store.logStart(mode, format)
   }
 
-  function onLogStop() {
-    store.send({ type: 'log_stop' })
+  function onLogStop(saveAs: 'file' | 'fusion_snapshot' = 'file') {
+    store.logStop(saveAs)
+  }
+
+  function onTriggerFusionSnapshot() {
+    store.triggerFusionSnapshot('manual_dump')
   }
 
   function onExportProfile() {
@@ -250,6 +255,7 @@ export function useSettingsApp() {
     setLocale,
     onLogStart,
     onLogStop,
+    onTriggerFusionSnapshot,
     onExportProfile,
     onOpenImport,
     openDashboard,

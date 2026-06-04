@@ -22,6 +22,7 @@ export interface InitPayload {
   config: ConfigMap
   defaults: ConfigMap
   log_status: LogStatus
+  system_logs?: Omit<SystemLog, 'time'>[]
   web_urls?: WebUrls
   effective_output_mode?: 'keyboard' | 'vjoy'
   /** `view_only` when spawned with --backend-only (Electron); `full` for standalone backend. */
@@ -41,8 +42,9 @@ export type WsOutbound =
   | { type: 'set_web_bind'; host: string; port: number }
   | { type: 'set_network'; web_host: string; web_port: number; udp_port: number }
   | { type: 'reset_config' }
-  | { type: 'log_start'; mode: string }
-  | { type: 'log_stop' }
+  | { type: 'log_start'; mode: string; format?: string }
+  | { type: 'log_stop'; save_as?: 'file' | 'fusion_snapshot'; reason?: string }
+  | { type: 'trigger_fusion_snapshot'; reason?: string }
   | { type: 'request_graph' }
   | { type: 'export_profile' }
   | { type: 'import_profile'; data: unknown }
@@ -62,7 +64,7 @@ export type WsInbound =
   | { type: 'web_bind_changed'; ok?: boolean; error?: string; data: WebUrls }
   | { type: 'config_update'; data: Partial<ConfigMap> }
   | { type: 'system_log'; level: string; msg: string }
-  | { type: 'fusion_snapshot'; reason: string; filename: string }
+  | { type: 'fusion_snapshot'; reason: string; filename: string; chart_filename?: string }
 
 export interface SystemLog {
   time: number

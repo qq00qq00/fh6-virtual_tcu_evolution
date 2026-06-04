@@ -18,7 +18,6 @@ export const FEATURE_TOGGLES: FeatureToggle[] = [
   { key: 'feat_transient_lock', i18nKey: 'transientLock' },
   { key: 'feat_drive_style', i18nKey: 'driveStyle' },
   { key: 'feat_discord_rpc', i18nKey: 'discordRpc' },
-  { key: 'feat_fusion_logger', i18nKey: 'fusionLogger' },
 ]
 
 export interface SliderDef {
@@ -132,6 +131,7 @@ export const SETTING_GROUPS: { i18nKey: string; keys: string[]; hintKey?: string
 export const LOG_OUTPUT_FORMAT_OPTIONS = [
   { value: 'bin.gz', i18nKey: 'logFormatBinGz' },
   { value: 'csv', i18nKey: 'logFormatCsv' },
+  { value: 'csv_chart', i18nKey: 'logFormatCsvChart' },
   { value: 'json', i18nKey: 'logFormatJson' },
   { value: 'jsonl', i18nKey: 'logFormatJsonl' },
   { value: 'summary', i18nKey: 'logFormatSummary' },
