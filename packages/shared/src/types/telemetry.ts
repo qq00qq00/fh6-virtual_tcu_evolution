@@ -3,6 +3,8 @@ export interface LogStatus {
   mode: string
   packets: number
   size_kb: number
+  file?: string | null
+  format?: string
 }
 
 export interface ShiftHistoryItem {

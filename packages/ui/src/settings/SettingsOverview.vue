@@ -6,18 +6,7 @@
   import SettingsHud from './SettingsHud.vue'
 
   const ctx = inject(settingsContextKey)!
-  const {
-    t,
-    store,
-    driveModes,
-    dashboardUrl,
-    lanUrl,
-    udpPort,
-    openDashboard,
-    toggleHud,
-    onLogStart,
-    onLogStop,
-  } = ctx
+  const { t, store, driveModes, dashboardUrl, lanUrl, udpPort, openDashboard, toggleHud } = ctx
 
   function modeColor(id: string) {
     return (
@@ -41,7 +30,7 @@
 <template>
   <NGrid :cols="12" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
     <NGridItem :span="6">
-      <NCard :title="t('modes.title')" size="small" :bordered="false">
+      <NCard :title="t('modes.title')" size="small" :bordered="false" style="height: 100%">
         <template #header-extra>
           <NText depth="3" style="font-size: 11px">
             {{ t('modes.hotkeyHintBefore') }}<kbd>F9</kbd>
@@ -145,7 +134,7 @@
       <SettingsHud />
     </NGridItem>
 
-    <NGridItem :span="6">
+    <NGridItem :span="12">
       <NCard :title="t('calibration.title')" size="small" :bordered="false">
         <NFlex align="center" :size="12">
           <NTag
@@ -163,53 +152,6 @@
             {{ t('calibration.hint') }}
           </NText>
         </NFlex>
-      </NCard>
-    </NGridItem>
-
-    <NGridItem :span="6">
-      <NCard :title="t('logger.title')" size="small" :bordered="false">
-        <NFlex justify="space-between" align="center" style="margin-bottom: 12px">
-          <NTag
-            :type="store.logStatus.value?.recording ? 'error' : 'default'"
-            :bordered="false"
-            round
-          >
-            {{ store.logStatus.value?.recording ? t('logger.recording') : t('logger.stopped') }}
-          </NTag>
-          <NText depth="3" style="font-size: 11px; font-family: ui-monospace, monospace">
-            {{ store.logStatus.value?.packets ?? 0 }} pkts ·
-            {{ store.logStatus.value?.size_kb ?? 0 }} KB
-          </NText>
-        </NFlex>
-        <NFlex :size="6">
-          <NButton
-            type="primary"
-            size="small"
-            :disabled="store.logStatus.value?.recording"
-            @click="onLogStart('events')"
-          >
-            {{ t('logger.startEvents') }}
-          </NButton>
-          <NButton
-            size="small"
-            :disabled="store.logStatus.value?.recording"
-            @click="onLogStart('all')"
-          >
-            {{ t('logger.startAll') }}
-          </NButton>
-          <NButton
-            size="small"
-            type="error"
-            ghost
-            :disabled="!store.logStatus.value?.recording"
-            @click="onLogStop"
-          >
-            {{ t('logger.stop') }}
-          </NButton>
-        </NFlex>
-        <NText depth="3" style="font-size: 11px; display: block; margin-top: 8px">
-          {{ t('logger.hint') }}
-        </NText>
       </NCard>
     </NGridItem>
   </NGrid>

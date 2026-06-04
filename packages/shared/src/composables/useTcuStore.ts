@@ -1,5 +1,13 @@
 import type { LogStatus, ShiftHistoryItem, TelemetrySnapshot } from '../types/telemetry'
-import type { ConfigMap, DriveMode, TcuUiMode, WebUrls, WsInbound } from '../types/ws'
+import type {
+  ConfigMap,
+  DriveMode,
+  SystemLog,
+  TcuUiMode,
+  TelemetryLog,
+  WebUrls,
+  WsInbound,
+} from '../types/ws'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { TcuWsClient } from '../api/ws-client'
 
@@ -43,6 +51,8 @@ export function useTcuStore() {
   const webBindStatus = ref<{ ok: boolean; error?: string } | null>(null)
   const effectiveOutputMode = ref<'keyboard' | 'vjoy' | null>(null)
   const uiMode = ref<TcuUiMode>('view_only')
+  const systemLogs = ref<SystemLog[]>([])
+  const telemetryLogs = ref<TelemetryLog[]>([])
 
   const modal = reactive({
     open: false,
@@ -61,6 +71,13 @@ export function useTcuStore() {
         shiftCount.value = msg.data.shift_count
         packetsTotal.value = msg.data.packets_total
         logStatus.value = msg.data.log_status
+        if (msg.data.system_logs) {
+          systemLogs.value = msg.data.system_logs.map((log) => ({
+            time: Date.now(),
+            level: log.level,
+            msg: log.msg,
+          }))
+        }
         webUrls.value = msg.data.web_urls ?? null
         effectiveOutputMode.value = msg.data.effective_output_mode ?? null
         uiMode.value = msg.data.ui_mode === 'full' ? 'full' : 'view_only'
@@ -88,6 +105,22 @@ export function useTcuStore() {
       case 'log_status':
         logStatus.value = msg.data
         break
+      case 'log_conversion':
+        if (msg.ok) {
+          systemLogs.value.push({
+            time: Date.now(),
+            level: 'INFO',
+            msg: `Log converted to ${msg.format}: ${msg.files?.join(', ')}`,
+          })
+        } else {
+          systemLogs.value.push({
+            time: Date.now(),
+            level: 'ERROR',
+            msg: `Log conversion to ${msg.format} failed: ${msg.error}`,
+          })
+        }
+        if (systemLogs.value.length > 300) systemLogs.value.shift()
+        break
       case 'profile_export':
         openModal('export', '', JSON.stringify(msg.data, null, 2))
         break
@@ -107,6 +140,18 @@ export function useTcuStore() {
           if (msg.data.udp_port !== undefined) config.udp_port = msg.data.udp_port
           client.setUrl(wsUrlFromWebUrls(msg.data))
         }
+        break
+      case 'system_log':
+        systemLogs.value.push({ time: Date.now(), level: msg.level, msg: msg.msg })
+        if (systemLogs.value.length > 300) systemLogs.value.shift()
+        break
+      case 'fusion_snapshot':
+        telemetryLogs.value.unshift({
+          time: Date.now(),
+          reason: msg.reason,
+          filename: msg.filename,
+        })
+        if (telemetryLogs.value.length > 50) telemetryLogs.value.pop()
         break
     }
   }
@@ -141,12 +186,16 @@ export function useTcuStore() {
     send({ type: 'restart_backend' })
   }
 
-  function logStart(mode: 'events' | 'all') {
-    send({ type: 'log_start', mode })
+  function logStart(mode: 'events' | 'all', format?: string) {
+    send({ type: 'log_start', mode, format })
   }
 
-  function logStop() {
-    send({ type: 'log_stop' })
+  function logStop(saveAs: 'file' | 'fusion_snapshot' = 'file') {
+    send({ type: 'log_stop', save_as: saveAs, reason: 'manual_dump' })
+  }
+
+  function triggerFusionSnapshot(reason = 'manual_dump') {
+    send({ type: 'trigger_fusion_snapshot', reason })
   }
 
   function exportProfile() {
@@ -260,6 +309,8 @@ export function useTcuStore() {
     uiMode,
     sessionStats,
     connectionLabel,
+    systemLogs,
+    telemetryLogs,
     modal,
     send,
     setMode,
@@ -270,6 +321,7 @@ export function useTcuStore() {
     restartBackend,
     logStart,
     logStop,
+    triggerFusionSnapshot,
     exportProfile,
     openImportProfile,
     openModal,

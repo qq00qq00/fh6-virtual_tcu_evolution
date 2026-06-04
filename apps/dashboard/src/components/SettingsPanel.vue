@@ -1,7 +1,12 @@
 <script setup lang="ts">
   import type { TabId } from './settings-panel'
-  import type { SessionStats, ShiftHistoryItem, TelemetrySnapshot } from '@/types/telemetry'
-  import type { ConfigMap } from '@/types/ws'
+  import type {
+    LogStatus,
+    SessionStats,
+    ShiftHistoryItem,
+    TelemetrySnapshot,
+  } from '@/types/telemetry'
+  import type { ConfigMap, SystemLog, TelemetryLog } from '@/types/ws'
   import { HUD_TEMPLATES } from '@virtual-tcu/shared/config/hud'
   import {
     NButton,
@@ -10,13 +15,15 @@
     NInput,
     NRadioButton,
     NRadioGroup,
+    NSelect,
     NSlider,
     NSwitch,
     NTabPane,
     NTabs,
+    NTag,
     NText,
   } from 'naive-ui'
-  import { computed, toRefs } from 'vue'
+  import { computed, nextTick, ref, toRefs, watch } from 'vue'
   import {
     CLUTCH_ASSIST_FIELDS,
     CLUTCH_TIMING_SLIDERS,
@@ -39,18 +46,24 @@
       sessionStats?: SessionStats | null
       shiftHistory?: ShiftHistoryItem[]
       watchdogStuck?: boolean
+      logStatus?: LogStatus | null
       visibleTabs?: string[]
       initialTab?: string
       hideTabBar?: boolean
+      systemLogs?: SystemLog[]
+      telemetryLogs?: TelemetryLog[]
     }>(),
     {
       telemetry: null,
       sessionStats: null,
       shiftHistory: () => [],
       watchdogStuck: false,
+      logStatus: null,
       visibleTabs: () => [...TAB_IDS],
       initialTab: '',
       hideTabBar: false,
+      systemLogs: () => [],
+      telemetryLogs: () => [],
     },
   )
   const emit = defineEmits([
@@ -60,6 +73,9 @@
     'exportProfile',
     'openImport',
     'restartBackend',
+    'logStart',
+    'logStop',
+    'triggerFusionSnapshot',
   ])
 
   const { config, telemetry, sessionStats, shiftHistory, visibleTabs } = toRefs(props)
@@ -103,6 +119,84 @@
   }
 
   const { confirmReset } = useConfirmReset(() => emit('resetConfig'))
+
+  const logView = ref<'system' | 'telemetry'>('system')
+  const logRecordMode = ref<'events' | 'all'>('events')
+  const autoScroll = ref(true)
+  const telemetryStreaming = ref(false)
+  const telemetryPacketLogs = ref<string[]>([])
+  const sysLogRef = ref<HTMLElement | null>(null)
+  const logFormatOptions = [
+    { label: 'bin.gz', value: 'bin.gz' },
+    { label: 'bin', value: 'bin' },
+    { label: 'txt', value: 'txt' },
+    { label: 'json', value: 'json' },
+    { label: 'jsonl', value: 'jsonl' },
+    { label: 'csv', value: 'csv' },
+    { label: 'chart.html', value: 'csv_chart' },
+    { label: 'summary', value: 'summary' },
+  ]
+  const logFormat = computed({
+    get: () => String(config.value.log_output_format ?? props.logStatus?.format ?? 'bin.gz'),
+    set: (value: string) => emit('setConfig', 'log_output_format', value),
+  })
+  const isRecording = computed(() => !!props.logStatus?.recording)
+
+  function localLogTime(ts: number) {
+    const date = new Date(ts)
+    const hh = String(date.getHours()).padStart(2, '0')
+    const mm = String(date.getMinutes()).padStart(2, '0')
+    const ss = String(date.getSeconds()).padStart(2, '0')
+    const ms = String(date.getMilliseconds()).padStart(3, '0')
+    return `${hh}:${mm}:${ss}.${ms}`
+  }
+
+  function startLogRecording() {
+    emit('setConfig', 'log_output_format', logFormat.value)
+    emit('logStart', logRecordMode.value)
+  }
+
+  function stopLogRecording() {
+    emit('logStop', 'file')
+  }
+
+  function stopAsFusionSnapshot() {
+    emit('logStop', 'fusion_snapshot')
+  }
+
+  function formatTelemetryPacket(td: TelemetrySnapshot) {
+    return [
+      `[${localLogTime(Date.now())}]`,
+      `gear=${td.gear}`,
+      `speed=${td.speed_kmh.toFixed(1)}km/h`,
+      `rpm=${Math.round(td.rpm)}/${Math.round(td.rpm_max)}`,
+      `throttle=${Math.round(td.throttle * 100)}%`,
+      `brake=${Math.round(td.brake * 100)}%`,
+      `state=${td.tcu_state}`,
+    ].join(' ')
+  }
+
+  watch(
+    () => props.systemLogs?.length,
+    () => {
+      if (logView.value === 'system' && autoScroll.value && sysLogRef.value) {
+        nextTick(() => {
+          sysLogRef.value!.scrollTop = sysLogRef.value!.scrollHeight
+        })
+      }
+    },
+  )
+
+  watch(
+    () => telemetry.value,
+    (td) => {
+      if (!telemetryStreaming.value || !td) return
+      telemetryPacketLogs.value.push(formatTelemetryPacket(td))
+      if (telemetryPacketLogs.value.length > 300) {
+        telemetryPacketLogs.value.splice(0, telemetryPacketLogs.value.length - 300)
+      }
+    },
+  )
 </script>
 
 <template>
@@ -306,6 +400,166 @@
               </div>
             </div>
           </NCard>
+        </template>
+
+        <!-- logs tab -->
+        <template v-if="tab === 'logs'">
+          <NFlex vertical :size="16">
+            <NCard :title="$t('logs.recordingTitle')" size="small" :bordered="false">
+              <NFlex justify="space-between" align="center" wrap :size="10">
+                <NTag :type="isRecording ? 'error' : 'default'" round :bordered="false">
+                  {{ isRecording ? $t('logger.recording') : $t('logger.stopped') }}
+                </NTag>
+                <NText code style="font-family: ui-monospace, monospace">
+                  {{ props.logStatus?.packets ?? 0 }} pkts · {{ props.logStatus?.size_kb ?? 0 }} KB
+                </NText>
+              </NFlex>
+
+              <NFlex align="center" wrap :size="10" style="margin-top: 12px">
+                <NRadioGroup v-model:value="logRecordMode" size="small" :disabled="isRecording">
+                  <NRadioButton value="events" :label="$t('logger.startEvents')" />
+                  <NRadioButton value="all" :label="$t('logger.startAll')" />
+                </NRadioGroup>
+                <NSelect
+                  v-model:value="logFormat"
+                  :options="logFormatOptions"
+                  size="small"
+                  :disabled="isRecording"
+                  style="width: 132px"
+                />
+                <NButton
+                  type="primary"
+                  size="small"
+                  :disabled="isRecording"
+                  @click="startLogRecording"
+                >
+                  {{ $t('logs.startRecording') }}
+                </NButton>
+                <NButton
+                  type="error"
+                  ghost
+                  size="small"
+                  :disabled="!isRecording"
+                  @click="stopLogRecording"
+                >
+                  {{ $t('logs.stopSaveFile') }}
+                </NButton>
+                <NButton
+                  type="warning"
+                  ghost
+                  size="small"
+                  :disabled="!isRecording"
+                  @click="stopAsFusionSnapshot"
+                >
+                  {{ $t('logs.stopSaveFusionSnapshot') }}
+                </NButton>
+              </NFlex>
+
+              <NText depth="3" style="display: block; margin-top: 8px; font-size: 11px">
+                {{ $t('logs.currentFile') }} {{ props.logStatus?.file ?? $t('logs.noActiveFile') }}
+              </NText>
+            </NCard>
+
+            <NCard
+              size="small"
+              :bordered="false"
+              style="
+                padding: 0;
+                background: #18181c;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              "
+            >
+              <template #header>
+                <NFlex justify="space-between" align="center">
+                  <NRadioGroup v-model:value="logView" size="small">
+                    <NRadioButton value="system" :label="$t('logs.systemLogs')" />
+                    <NRadioButton value="telemetry" :label="$t('logs.telemetryLogs')" />
+                  </NRadioGroup>
+                  <NFlex :size="8">
+                    <NButton
+                      v-if="logView === 'telemetry'"
+                      size="tiny"
+                      :type="telemetryStreaming ? 'success' : 'default'"
+                      secondary
+                      @click="telemetryStreaming = !telemetryStreaming"
+                    >
+                      {{
+                        telemetryStreaming
+                          ? $t('logs.telemetryStreamingOn')
+                          : $t('logs.telemetryStreamingOff')
+                      }}
+                    </NButton>
+                    <NButton size="tiny" secondary @click="autoScroll = !autoScroll">
+                      {{ autoScroll ? $t('logs.autoScroll') : $t('logs.scrollLock') }}
+                    </NButton>
+                  </NFlex>
+                </NFlex>
+              </template>
+
+              <div
+                v-if="logView === 'system'"
+                ref="sysLogRef"
+                style="height: 360px; overflow-y: auto; padding: 10px; font-size: 11px"
+              >
+                <div
+                  v-if="systemLogs.length === 0"
+                  style="color: #666; text-align: center; margin-top: 40px"
+                >
+                  {{ $t('logs.waitingSystemEvents') }}
+                </div>
+                <div
+                  v-for="(log, i) in systemLogs"
+                  :key="i"
+                  style="margin-bottom: 4px; white-space: pre-wrap"
+                >
+                  <span style="color: #888">[{{ localLogTime(log.time) }}]</span>
+                  <span
+                    :style="{
+                      color:
+                        log.level === 'ERROR'
+                          ? '#ff4d4f'
+                          : log.level === 'WARN'
+                            ? '#faad14'
+                            : log.level === 'DEBUG'
+                              ? '#a3a3a3'
+                              : '#69b1ff',
+                      margin: '0 8px',
+                    }"
+                  >
+                    [{{ log.level }}]
+                  </span>
+                  <span style="color: #ddd">{{ log.msg }}</span>
+                </div>
+              </div>
+
+              <div v-else style="height: 360px; overflow-y: auto; padding: 10px; font-size: 11px">
+                <div
+                  v-if="!telemetryStreaming"
+                  style="color: #666; text-align: center; margin-top: 40px"
+                >
+                  {{ $t('logs.telemetryStreamOff') }}
+                </div>
+                <div
+                  v-else-if="telemetryPacketLogs.length === 0"
+                  style="color: #666; text-align: center; margin-top: 40px"
+                >
+                  {{ $t('logs.waitingTelemetryPackets') }}
+                </div>
+                <div
+                  v-for="(log, i) in telemetryPacketLogs"
+                  :key="i"
+                  style="
+                    margin-bottom: 4px;
+                    color: #d4d4d8;
+                    font-weight: 400;
+                    white-space: pre-wrap;
+                  "
+                >
+                  {{ log }}
+                </div>
+              </div>
+            </NCard>
+          </NFlex>
         </template>
 
         <!-- extras tab -->

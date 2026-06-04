@@ -164,6 +164,9 @@ importers:
       '@virtual-tcu/shared':
         specifier: workspace:*
         version: link:../shared
+      '@xterm/xterm':
+        specifier: ^6.0.0
+        version: 6.0.0
       naive-ui:
         specifier: ^2.44.1
         version: 2.44.1(vue@3.5.34(typescript@5.9.3))
@@ -1540,6 +1543,9 @@ packages:
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
+
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==}
 
   abbrev@3.0.1:
     resolution: {integrity: sha512-AO2ac6pjRB3SJmGJo+v5/aK6Omggp6fsLrs6wN9bd35ulu4cCwaAU9+7ZhXjeqHVkaHThLuzH0nZr0YpCDhygg==}
@@ -5672,6 +5678,8 @@ snapshots:
 
   '@xmldom/xmldom@0.9.10':
     optional: true
+
+  '@xterm/xterm@6.0.0': {}
 
   abbrev@3.0.1: {}
 

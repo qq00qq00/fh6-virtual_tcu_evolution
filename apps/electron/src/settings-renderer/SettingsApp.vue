@@ -9,6 +9,7 @@
     SettingsOutline,
     SpeedometerOutline,
     StatsChartOutline,
+    TerminalOutline,
     TimeOutline,
   } from '@vicons/ionicons5'
   import TcuConfigProvider from '@virtual-tcu/ui/components/TcuConfigProvider.vue'
@@ -17,6 +18,7 @@
   import SettingsAdvanced from '@virtual-tcu/ui/settings/SettingsAdvanced.vue'
   import SettingsConfig from '@virtual-tcu/ui/settings/SettingsConfig.vue'
   import SettingsHistory from '@virtual-tcu/ui/settings/SettingsHistory.vue'
+  import SettingsLogs from '@virtual-tcu/ui/settings/SettingsLogs.vue'
   import SettingsOverview from '@virtual-tcu/ui/settings/SettingsOverview.vue'
   import SettingsStats from '@virtual-tcu/ui/settings/SettingsStats.vue'
   import {
@@ -63,6 +65,7 @@
     advanced: RocketOutline,
     stats: StatsChartOutline,
     history: TimeOutline,
+    logs: TerminalOutline,
     about: HelpCircleOutline,
   } as const
 
@@ -179,6 +182,7 @@
             <SettingsAdvanced v-else-if="tab.key === 'advanced'" />
             <SettingsStats v-else-if="tab.key === 'stats'" />
             <SettingsHistory v-else-if="tab.key === 'history'" />
+            <SettingsLogs v-else-if="tab.key === 'logs'" />
             <SettingsAbout v-else-if="tab.key === 'about'" :build-version="buildVersion" />
           </NTabPane>
         </NTabs>

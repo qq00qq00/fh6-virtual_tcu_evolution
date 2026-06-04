@@ -77,7 +77,7 @@ export const SETTING_SLIDERS: SliderDef[] = [
 
 export const HOTKEY_FIELDS = [
   { key: 'hotkey_cycle_mode', i18nKey: 'cycleMode', placeholder: 'f9' },
-  { key: 'hotkey_toggle_log', i18nKey: 'toggleLog', placeholder: 'f8' },
+  { key: 'hotkey_snapshot', i18nKey: 'triggerSnapshot', placeholder: 'f8' },
 ] as const
 
 export const SHIFT_KEY_FIELDS = [
@@ -127,3 +127,12 @@ export const SETTING_GROUPS: { i18nKey: string; keys: string[]; hintKey?: string
   { i18nKey: 'offroad', keys: ['offroad_up_wot', 'offroad_down_rpm'] },
   { i18nKey: 'common', keys: ['brake_thr', 'cornering_yaw'] },
 ]
+
+export const LOG_OUTPUT_FORMAT_OPTIONS = [
+  { value: 'bin.gz', i18nKey: 'logFormatBinGz' },
+  { value: 'csv', i18nKey: 'logFormatCsv' },
+  { value: 'csv_chart', i18nKey: 'logFormatCsvChart' },
+  { value: 'json', i18nKey: 'logFormatJson' },
+  { value: 'jsonl', i18nKey: 'logFormatJsonl' },
+  { value: 'summary', i18nKey: 'logFormatSummary' },
+] as const

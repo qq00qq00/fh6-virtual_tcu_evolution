@@ -6,6 +6,7 @@ import { DRIVE_MODES } from '@virtual-tcu/shared/config/modes'
 import {
   FEATURE_TOGGLES,
   HOTKEY_FIELDS,
+  LOG_OUTPUT_FORMAT_OPTIONS,
   OUTPUT_MODE_OPTIONS,
   SETTING_SLIDERS,
   SHIFT_KEY_FIELDS,
@@ -22,7 +23,14 @@ import { useUpdater } from './useUpdater'
 export const GITHUB_REPO_URL = 'https://github.com/Forza-Love/fh6-virtual_tcu'
 export { brandIconUrl }
 
-export type SettingsTabKey = 'overview' | 'config' | 'advanced' | 'stats' | 'history' | 'about'
+export type SettingsTabKey =
+  | 'overview'
+  | 'config'
+  | 'advanced'
+  | 'stats'
+  | 'history'
+  | 'logs'
+  | 'about'
 
 export function useSettingsApp() {
   const { t, locale } = useI18n()
@@ -35,6 +43,7 @@ export function useSettingsApp() {
     { key: 'advanced', i18nKey: 'advanced' },
     { key: 'stats', i18nKey: 'stats' },
     { key: 'history', i18nKey: 'history' },
+    { key: 'logs', i18nKey: 'logs' },
     { key: 'about', i18nKey: 'about' },
   ]
 
@@ -48,6 +57,7 @@ export function useSettingsApp() {
   const hotkeyFields = HOTKEY_FIELDS
   const shiftKeyFields = SHIFT_KEY_FIELDS
   const outputModeOptions = OUTPUT_MODE_OPTIONS
+  const logOutputFormatOptions = LOG_OUTPUT_FORMAT_OPTIONS
 
   const restartBackend = () => {
     const api = (window as unknown as { tcu?: { restartBackend?: () => Promise<void> } }).tcu
@@ -149,11 +159,16 @@ export function useSettingsApp() {
   }
 
   function onLogStart(mode: 'events' | 'all') {
-    store.send({ type: 'log_start', mode })
+    const format = String(store.config.log_output_format ?? 'bin.gz')
+    store.logStart(mode, format)
   }
 
-  function onLogStop() {
-    store.send({ type: 'log_stop' })
+  function onLogStop(saveAs: 'file' | 'fusion_snapshot' = 'file') {
+    store.logStop(saveAs)
+  }
+
+  function onTriggerFusionSnapshot() {
+    store.triggerFusionSnapshot('manual_dump')
   }
 
   function onExportProfile() {
@@ -216,6 +231,7 @@ export function useSettingsApp() {
     hotkeyFields,
     shiftKeyFields,
     outputModeOptions,
+    logOutputFormatOptions,
     networkDraftHost: network.draftHost,
     networkDraftWebPort: network.draftWebPort,
     networkDraftUdpPort: network.draftUdpPort,
@@ -239,6 +255,7 @@ export function useSettingsApp() {
     setLocale,
     onLogStart,
     onLogStop,
+    onTriggerFusionSnapshot,
     onExportProfile,
     onOpenImport,
     openDashboard,

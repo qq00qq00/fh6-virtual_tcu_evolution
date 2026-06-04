@@ -81,6 +81,7 @@ class KeyboardOutput(OutputInterface):
         shift_key = self.key_up if target_gear > from_gear else self.key_down
 
         if self.use_clutch:
+
             def _multi_shift_clutch():
                 for i in range(shifts_needed):
                     self._press_release_with_clutch(shift_key)
@@ -89,6 +90,7 @@ class KeyboardOutput(OutputInterface):
 
             self._executor.submit(_multi_shift_clutch)
         else:
+
             def _multi_shift():
                 for i in range(shifts_needed):
                     self._press_release(shift_key)
