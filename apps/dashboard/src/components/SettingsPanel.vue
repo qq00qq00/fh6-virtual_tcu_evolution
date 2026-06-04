@@ -22,6 +22,7 @@
     CLUTCH_TIMING_SLIDERS,
     FEATURE_TOGGLES,
     HOTKEY_FIELDS,
+    LOG_OUTPUT_FORMAT_OPTIONS,
     OUTPUT_MODE_OPTIONS,
     SETTING_GROUPS,
     SHIFT_KEY_FIELDS,
@@ -497,6 +498,22 @@
                   />
                 </NFlex>
               </NRadioGroup>
+            </NCard>
+
+            <NCard :title="$t('logger.outputFormat')" size="small" :bordered="false">
+              <NText depth="3" style="font-size: 12px; display: block; margin-bottom: 12px">
+                {{ $t('logger.outputFormatHint') }}
+              </NText>
+              <NSelect
+                :value="configText('log_output_format')"
+                :options="
+                  LOG_OUTPUT_FORMAT_OPTIONS.map((o) => ({
+                    label: $t(`logger.${o.i18nKey}`),
+                    value: o.value,
+                  }))
+                "
+                @update:value="(v) => store.setConfig('log_output_format', v)"
+              />
             </NCard>
 
             <NCard :title="$t('extras.profileTitle')" size="small" :bordered="false">

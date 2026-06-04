@@ -6,6 +6,7 @@ import { DRIVE_MODES } from '@virtual-tcu/shared/config/modes'
 import {
   FEATURE_TOGGLES,
   HOTKEY_FIELDS,
+  LOG_OUTPUT_FORMAT_OPTIONS,
   OUTPUT_MODE_OPTIONS,
   SETTING_SLIDERS,
   SHIFT_KEY_FIELDS,
@@ -56,6 +57,7 @@ export function useSettingsApp() {
   const hotkeyFields = HOTKEY_FIELDS
   const shiftKeyFields = SHIFT_KEY_FIELDS
   const outputModeOptions = OUTPUT_MODE_OPTIONS
+  const logOutputFormatOptions = LOG_OUTPUT_FORMAT_OPTIONS
 
   const restartBackend = () => {
     const api = (window as unknown as { tcu?: { restartBackend?: () => Promise<void> } }).tcu
@@ -224,6 +226,7 @@ export function useSettingsApp() {
     hotkeyFields,
     shiftKeyFields,
     outputModeOptions,
+    logOutputFormatOptions,
     networkDraftHost: network.draftHost,
     networkDraftWebPort: network.draftWebPort,
     networkDraftUdpPort: network.draftUdpPort,

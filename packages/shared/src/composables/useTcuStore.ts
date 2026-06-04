@@ -98,6 +98,22 @@ export function useTcuStore() {
       case 'log_status':
         logStatus.value = msg.data
         break
+      case 'log_conversion':
+        if (msg.ok) {
+          systemLogs.value.push({
+            time: Date.now(),
+            level: 'INFO',
+            msg: `Log converted to ${msg.format}: ${msg.files?.join(', ')}`,
+          })
+        } else {
+          systemLogs.value.push({
+            time: Date.now(),
+            level: 'ERROR',
+            msg: `Log conversion to ${msg.format} failed: ${msg.error}`,
+          })
+        }
+        if (systemLogs.value.length > 300) systemLogs.value.shift()
+        break
       case 'profile_export':
         openModal('export', '', JSON.stringify(msg.data, null, 2))
         break

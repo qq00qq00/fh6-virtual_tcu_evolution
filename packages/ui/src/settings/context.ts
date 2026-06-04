@@ -63,6 +63,7 @@ export interface SettingsContext {
   hotkeyFields: Array<{ key: string; i18nKey: string; placeholder: string }>
   shiftKeyFields: Array<{ key: string; i18nKey: string; placeholder: string }>
   outputModeOptions: ReadonlyArray<{ value: string; i18nKey: string }>
+  logOutputFormatOptions: ReadonlyArray<{ value: string; i18nKey: string }>
   settingsSliders: Ref<SliderDef[]>
   advancedSliders: Ref<SliderDef[]>
   statusLabel: Ref<{ text: string; kind: 'success' | 'warning' | 'error' }>

@@ -1,6 +1,17 @@
 <script setup lang="ts">
   import { EyeOutline, OpenOutline } from '@vicons/ionicons5'
-  import { NButton, NCard, NDivider, NFlex, NGrid, NGridItem, NIcon, NTag, NText } from 'naive-ui'
+  import {
+    NButton,
+    NCard,
+    NDivider,
+    NFlex,
+    NGrid,
+    NGridItem,
+    NIcon,
+    NSelect,
+    NTag,
+    NText,
+  } from 'naive-ui'
   import { inject } from 'vue'
   import { settingsContextKey } from './context'
   import SettingsHud from './SettingsHud.vue'
@@ -10,6 +21,8 @@
     t,
     store,
     driveModes,
+    logOutputFormatOptions,
+    configText,
     dashboardUrl,
     lanUrl,
     udpPort,
@@ -207,7 +220,23 @@
             {{ t('logger.stop') }}
           </NButton>
         </NFlex>
-        <NText depth="3" style="font-size: 11px; display: block; margin-top: 8px">
+        <div style="margin-top: 16px">
+          <NText depth="3" style="font-size: 11px; display: block; margin-bottom: 6px">
+            {{ t('logger.outputFormat') }}
+          </NText>
+          <NSelect
+            :value="configText('log_output_format')"
+            :options="
+              logOutputFormatOptions.map((o) => ({
+                label: t(`logger.${o.i18nKey}`),
+                value: o.value,
+              }))
+            "
+            size="small"
+            @update:value="(v) => store.setConfig('log_output_format', v)"
+          />
+        </div>
+        <NText depth="3" style="font-size: 11px; display: block; margin-top: 12px">
           {{ t('logger.hint') }}
         </NText>
       </NCard>

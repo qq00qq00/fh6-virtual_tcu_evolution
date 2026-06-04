@@ -158,6 +158,38 @@ class WebServer:
             await ws.send_json(
                 {"type": "log_status", "data": self._logger.status, "last_file": path}
             )
+            # Post-processing: convert to user-selected format if not bin.gz
+            if path:
+                fmt = str(self._config.get("log_output_format", "bin.gz"))
+                if fmt != "bin.gz":
+                    from pathlib import Path as _Path
+
+                    from virtual_tcu.telemetry.log_converter import convert_replay_async
+
+                    bin_path = _Path(path)
+                    loop = asyncio.get_running_loop()
+
+                    def _on_done(files):
+                        names = [f.name for f in files]
+                        msg = {
+                            "type": "log_conversion",
+                            "ok": True,
+                            "format": fmt,
+                            "files": names,
+                        }
+                        print(f"[LogConverter] Converted to {fmt}: {names}")
+                        asyncio.run_coroutine_threadsafe(self._broadcast_json(msg), loop)
+
+                    def _on_error(e):
+                        msg = {
+                            "type": "log_conversion",
+                            "ok": False,
+                            "format": fmt,
+                            "error": str(e),
+                        }
+                        asyncio.run_coroutine_threadsafe(self._broadcast_json(msg), loop)
+
+                    convert_replay_async(bin_path, fmt, on_done=_on_done, on_error=_on_error)
         elif t == "request_graph":
             await ws.send_json({"type": "graph_data", "data": self._tcu.snapshot_graph()})
         elif t == "export_profile":

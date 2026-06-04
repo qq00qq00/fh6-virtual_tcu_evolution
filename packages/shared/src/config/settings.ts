@@ -128,3 +128,11 @@ export const SETTING_GROUPS: { i18nKey: string; keys: string[]; hintKey?: string
   { i18nKey: 'offroad', keys: ['offroad_up_wot', 'offroad_down_rpm'] },
   { i18nKey: 'common', keys: ['brake_thr', 'cornering_yaw'] },
 ]
+
+export const LOG_OUTPUT_FORMAT_OPTIONS = [
+  { value: 'bin.gz', i18nKey: 'logFormatBinGz' },
+  { value: 'csv', i18nKey: 'logFormatCsv' },
+  { value: 'json', i18nKey: 'logFormatJson' },
+  { value: 'jsonl', i18nKey: 'logFormatJsonl' },
+  { value: 'summary', i18nKey: 'logFormatSummary' },
+] as const

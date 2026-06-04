@@ -54,6 +54,7 @@ export type WsInbound =
   | { type: 'state'; data: StatePayload }
   | { type: 'config_reset'; data: ConfigMap }
   | { type: 'log_status'; data: LogStatus; last_file?: string }
+  | { type: 'log_conversion'; ok: boolean; format: string; files?: string[]; error?: string }
   | { type: 'profile_export'; data: unknown }
   | { type: 'profile_imported'; ok: boolean; data?: ConfigMap; error?: string }
   | { type: 'graph_data'; data: unknown }
