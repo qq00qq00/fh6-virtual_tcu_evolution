@@ -1,5 +1,13 @@
 import type { LogStatus, ShiftHistoryItem, TelemetrySnapshot } from '../types/telemetry'
-import type { ConfigMap, DriveMode, TcuUiMode, WebUrls, WsInbound } from '../types/ws'
+import type {
+  ConfigMap,
+  DriveMode,
+  SystemLog,
+  TcuUiMode,
+  TelemetryLog,
+  WebUrls,
+  WsInbound,
+} from '../types/ws'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { TcuWsClient } from '../api/ws-client'
 
@@ -43,6 +51,8 @@ export function useTcuStore() {
   const webBindStatus = ref<{ ok: boolean; error?: string } | null>(null)
   const effectiveOutputMode = ref<'keyboard' | 'vjoy' | null>(null)
   const uiMode = ref<TcuUiMode>('view_only')
+  const systemLogs = ref<SystemLog[]>([])
+  const telemetryLogs = ref<TelemetryLog[]>([])
 
   const modal = reactive({
     open: false,
@@ -107,6 +117,18 @@ export function useTcuStore() {
           if (msg.data.udp_port !== undefined) config.udp_port = msg.data.udp_port
           client.setUrl(wsUrlFromWebUrls(msg.data))
         }
+        break
+      case 'system_log':
+        systemLogs.value.push({ time: Date.now(), level: msg.level, msg: msg.msg })
+        if (systemLogs.value.length > 300) systemLogs.value.shift()
+        break
+      case 'fusion_snapshot':
+        telemetryLogs.value.unshift({
+          time: Date.now(),
+          reason: msg.reason,
+          filename: msg.filename,
+        })
+        if (telemetryLogs.value.length > 50) telemetryLogs.value.pop()
         break
     }
   }
@@ -260,6 +282,8 @@ export function useTcuStore() {
     uiMode,
     sessionStats,
     connectionLabel,
+    systemLogs,
+    telemetryLogs,
     modal,
     send,
     setMode,

@@ -18,7 +18,7 @@ export const FEATURE_TOGGLES: FeatureToggle[] = [
   { key: 'feat_transient_lock', i18nKey: 'transientLock' },
   { key: 'feat_drive_style', i18nKey: 'driveStyle' },
   { key: 'feat_discord_rpc', i18nKey: 'discordRpc' },
-  { key: 'feat_driving_log', i18nKey: 'drivingLog' },
+  { key: 'feat_fusion_logger', i18nKey: 'fusionLogger' },
 ]
 
 export interface SliderDef {
@@ -78,7 +78,7 @@ export const SETTING_SLIDERS: SliderDef[] = [
 
 export const HOTKEY_FIELDS = [
   { key: 'hotkey_cycle_mode', i18nKey: 'cycleMode', placeholder: 'f9' },
-  { key: 'hotkey_toggle_log', i18nKey: 'toggleLog', placeholder: 'f8' },
+  { key: 'hotkey_snapshot', i18nKey: 'triggerSnapshot', placeholder: 'f8' },
 ] as const
 
 export const SHIFT_KEY_FIELDS = [

@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import type { TabId } from './settings-panel'
   import type { SessionStats, ShiftHistoryItem, TelemetrySnapshot } from '@/types/telemetry'
-  import type { ConfigMap } from '@/types/ws'
+  import type { ConfigMap, SystemLog, TelemetryLog } from '@/types/ws'
   import { HUD_TEMPLATES } from '@virtual-tcu/shared/config/hud'
   import {
     NButton,
@@ -16,7 +16,7 @@
     NTabs,
     NText,
   } from 'naive-ui'
-  import { computed, toRefs } from 'vue'
+  import { computed, nextTick, ref, toRefs, watch } from 'vue'
   import {
     CLUTCH_ASSIST_FIELDS,
     CLUTCH_TIMING_SLIDERS,
@@ -42,6 +42,8 @@
       visibleTabs?: string[]
       initialTab?: string
       hideTabBar?: boolean
+      systemLogs?: SystemLog[]
+      telemetryLogs?: TelemetryLog[]
     }>(),
     {
       telemetry: null,
@@ -51,6 +53,8 @@
       visibleTabs: () => [...TAB_IDS],
       initialTab: '',
       hideTabBar: false,
+      systemLogs: () => [],
+      telemetryLogs: () => [],
     },
   )
   const emit = defineEmits([
@@ -103,6 +107,21 @@
   }
 
   const { confirmReset } = useConfirmReset(() => emit('resetConfig'))
+
+  const logView = ref<'system' | 'telemetry'>('system')
+  const autoScroll = ref(true)
+  const sysLogRef = ref<HTMLElement | null>(null)
+
+  watch(
+    () => props.systemLogs?.length,
+    () => {
+      if (logView.value === 'system' && autoScroll.value && sysLogRef.value) {
+        nextTick(() => {
+          sysLogRef.value!.scrollTop = sysLogRef.value!.scrollHeight
+        })
+      }
+    },
+  )
 </script>
 
 <template>
@@ -306,6 +325,101 @@
               </div>
             </div>
           </NCard>
+        </template>
+
+        <!-- logs tab -->
+        <template v-if="tab === 'logs'">
+          <NFlex vertical :size="16">
+            <NCard
+              size="small"
+              :bordered="false"
+              style="
+                padding: 0;
+                background: #18181c;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              "
+            >
+              <template #header>
+                <NFlex justify="space-between" align="center">
+                  <NRadioGroup v-model:value="logView" size="small">
+                    <NRadioButton value="system" :label="$t('logs.systemLogs')" />
+                    <NRadioButton value="telemetry" :label="$t('logs.telemetryLogs')" />
+                  </NRadioGroup>
+                  <NSwitch v-model:value="autoScroll" size="small">
+                    <template #checked>{{ $t('logs.autoScroll') }}</template>
+                    <template #unchecked>{{ $t('logs.scrollLock') }}</template>
+                  </NSwitch>
+                </NFlex>
+              </template>
+
+              <div
+                v-if="logView === 'system'"
+                ref="sysLogRef"
+                style="height: 360px; overflow-y: auto; padding: 10px; font-size: 11px"
+              >
+                <div
+                  v-if="systemLogs.length === 0"
+                  style="color: #666; text-align: center; margin-top: 40px"
+                >
+                  {{ $t('logs.waitingSystemEvents') }}
+                </div>
+                <div
+                  v-for="(log, i) in systemLogs"
+                  :key="i"
+                  style="margin-bottom: 4px; white-space: pre-wrap"
+                >
+                  <span style="color: #888"
+                    >[{{ new Date(log.time).toISOString().substring(11, 23) }}]</span
+                  >
+                  <span
+                    :style="{
+                      color:
+                        log.level === 'ERROR'
+                          ? '#ff4d4f'
+                          : log.level === 'WARN'
+                            ? '#faad14'
+                            : log.level === 'DEBUG'
+                              ? '#a3a3a3'
+                              : '#69b1ff',
+                      margin: '0 8px',
+                    }"
+                  >
+                    [{{ log.level }}]
+                  </span>
+                  <span style="color: #ddd">{{ log.msg }}</span>
+                </div>
+              </div>
+
+              <div v-else style="height: 360px; overflow-y: auto; padding: 10px; font-size: 11px">
+                <div
+                  v-if="telemetryLogs.length === 0"
+                  style="color: #666; text-align: center; margin-top: 40px"
+                >
+                  {{ $t('logs.noSnapshotsRecorded') }}
+                </div>
+                <div
+                  v-for="(log, i) in telemetryLogs"
+                  :key="i"
+                  style="
+                    margin-bottom: 8px;
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 8px;
+                    border-radius: 4px;
+                  "
+                >
+                  <NFlex justify="space-between" align="center">
+                    <span style="color: #888"
+                      >[{{ new Date(log.time).toISOString().substring(11, 23) }}]</span
+                    >
+                    <span style="color: #ffccc7; font-weight: bold">{{ log.reason }}</span>
+                  </NFlex>
+                  <div style="margin-top: 4px; color: #4ade80">
+                    {{ $t('logs.saved') }} {{ log.filename }}
+                  </div>
+                </div>
+              </div>
+            </NCard>
+          </NFlex>
         </template>
 
         <!-- extras tab -->

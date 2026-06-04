@@ -24,7 +24,7 @@ from virtual_tcu.state.session_stats import SessionStats
 from virtual_tcu.state.shift_history import ShiftHistory
 from virtual_tcu.state.watchdog import Watchdog
 from virtual_tcu.storage.profiles import ProfileStore
-from virtual_tcu.telemetry.driving_log import DrivingLogger
+from virtual_tcu.telemetry.fusion_logger import FusionSnapshotLogger
 from virtual_tcu.telemetry.logger import TelemetryLogger
 from virtual_tcu.telemetry.model import Telemetry
 
@@ -95,8 +95,9 @@ class TCULogic:
         self._graph_buffer = GraphBuffer()
         self._watchdog = Watchdog()
         self._discord_rpc = DiscordRPC() if config.get("feat_discord_rpc") else None
-        self._driving_log = DrivingLogger()
+        self._fusion_logger = FusionSnapshotLogger()
         self._last_decision = {"rule": "", "reason": "", "blocked_by": None}
+        self._redline_time = 0.0
 
         self._tcu_state = "STANDBY"
         self._tcu_state_sub = ""
@@ -156,7 +157,6 @@ class TCULogic:
 
     def shutdown(self):
         self.save_profiles()
-        self._driving_log.stop()
         self._audio_executor.shutdown(wait=False)
         self._discord_executor.shutdown(wait=False)
         if self._discord_rpc:
@@ -213,11 +213,6 @@ class TCULogic:
             except Exception:
                 pass
         self._paddle_keys = ("", "")
-
-    def _ensure_driving_log(self, td: Telemetry):
-        """Lazily start the driving log CSV on first event."""
-        if not self._driving_log.is_active:
-            self._driving_log.start(car_ordinal=td.car_ordinal)
 
     def refresh_shift_keys(self):
         if Cfg.REVERSE_HOLD_MS > 0:
@@ -295,7 +290,7 @@ class TCULogic:
                     "peak_power_rpm_pct": None,
                     "peak_torque_rpm_pct": None,
                     "is_race_on": False,
-                    "driving_log": self._driving_log.status,
+                    "driving_log": False,
                 }
             return {
                 "gear": td.gear,
@@ -338,7 +333,7 @@ class TCULogic:
                 "yaw_transient": self._yaw_transient.is_blocking,
                 "peak_power_rpm_pct": self._power_curve.peak_power_rpm(td.car_key),
                 "peak_torque_rpm_pct": self._power_curve.peak_torque_rpm(td.car_key),
-                "driving_log": self._driving_log.status,
+                "driving_log": False,
             }
 
     def snapshot_graph(self) -> list:
@@ -348,16 +343,13 @@ class TCULogic:
     def process(self, td: Telemetry, raw_packet: bytes | None = None):
         with self._data_lock:
             self._process_internal(td, raw_packet)
+            if self._config.get("feat_fusion_logger"):
+                self._fusion_logger.push(td, self.snapshot(td))
 
     def _process_internal(self, td: Telemetry, raw_packet: bytes | None):
         now = time.time()
 
         is_race_now = bool(td.is_race_on)
-        if self._config.get("feat_driving_log"):
-            if is_race_now and not self._was_race_on:
-                self._driving_log.start(car_ordinal=td.car_ordinal)
-            elif not is_race_now and self._was_race_on:
-                self._driving_log.stop()
         self._was_race_on = is_race_now
 
         dt = now - self._last_packet_time if self._last_packet_time > 0.0 else 0.016
@@ -397,22 +389,9 @@ class TCULogic:
                     self._no_downshift_until = max(self._no_downshift_until, now + 0.8)
                 if not airborne:
                     self._no_upshift_until = max(self._no_upshift_until, now + 0.5)
-                # Record manual intervention in driving log
-                if self._config.get("feat_driving_log"):
-                    manual_action = "MANUAL_UP" if td.gear > self._prev_gear else "MANUAL_DOWN"
-                    self._ensure_driving_log(td)
-                    self._driving_log.log_event(
-                        manual_action,
-                        td,
-                        gear_before=self._prev_gear,
-                        gear_after=td.gear,
-                        reason="PLAYER",
-                        rule=self.mode.value,
-                        tcu_state=self._tcu_state,
-                        tcu_state_sub=self._tcu_state_sub,
-                        g_lat=self._g_lat,
-                        g_lon=self._g_lon,
-                    )
+                # Record manual intervention in fusion log
+                if self._config.get("feat_fusion_logger"):
+                    self._fusion_logger.trigger_snapshot("manual_shift")
         self._prev_gear = td.gear
         self._we_shifted = False
 
@@ -434,6 +413,16 @@ class TCULogic:
 
         if td.current_rpm > self._peak_rpm:
             self._peak_rpm = td.current_rpm
+
+        if td.rpm_pct > 0.98 and td.gear > 0:
+            if self._redline_time == 0.0:
+                self._redline_time = now
+            elif now - self._redline_time > 1.5:
+                if self._config.get("feat_fusion_logger"):
+                    self._fusion_logger.trigger_snapshot("anomaly_redline")
+                self._redline_time = now
+        else:
+            self._redline_time = 0.0
 
         self._g_lat = td.accel_x / 9.81
         self._g_lon = td.accel_z / 9.81
@@ -628,20 +617,8 @@ class TCULogic:
         self._logger.mark_event()
         self._shift_history.record("UP", td, reason=state, rule=self.mode.value, sent_at=now)
         self._session_stats.record_shift("UP", state)
-        if self._config.get("feat_driving_log"):
-            self._ensure_driving_log(td)
-            self._driving_log.log_event(
-                "AUTO_UP",
-                td,
-                gear_before=td.gear,
-                gear_after=td.gear + 1,
-                reason=state,
-                rule=self.mode.value,
-                tcu_state=state,
-                tcu_state_sub=sub,
-                g_lat=self._g_lat,
-                g_lon=self._g_lon,
-            )
+        if self._config.get("feat_fusion_logger"):
+            self._fusion_logger.trigger_snapshot("auto_up")
         if WINSOUND_OK and self._config.get("feat_sound_beep"):
             self._audio_executor.submit(winsound.Beep, 3000, 40)
         return True
@@ -692,20 +669,8 @@ class TCULogic:
         self._logger.mark_event()
         self._shift_history.record("DOWN", td, reason=state, rule=self.mode.value, sent_at=now)
         self._session_stats.record_shift("DOWN", state)
-        if self._config.get("feat_driving_log"):
-            self._ensure_driving_log(td)
-            self._driving_log.log_event(
-                "AUTO_DOWN",
-                td,
-                gear_before=td.gear,
-                gear_after=td.gear - 1,
-                reason=state,
-                rule=self.mode.value,
-                tcu_state=state,
-                tcu_state_sub=sub,
-                g_lat=self._g_lat,
-                g_lon=self._g_lon,
-            )
+        if self._config.get("feat_fusion_logger"):
+            self._fusion_logger.trigger_snapshot("auto_down")
         if WINSOUND_OK and self._config.get("feat_sound_beep"):
             self._audio_executor.submit(winsound.Beep, 1500, 50)
         return True
@@ -742,20 +707,8 @@ class TCULogic:
         )
         self._session_stats.record_shift("DOWN", "BRAKE DOWN")
         self._session_stats.record_shift("DOWN", "BRAKE DOWN")
-        if self._config.get("feat_driving_log"):
-            self._ensure_driving_log(td)
-            self._driving_log.log_event(
-                "AUTO_DOUBLE_DOWN",
-                td,
-                gear_before=td.gear,
-                gear_after=target,
-                reason="SKIP DOWN",
-                rule=self.mode.value,
-                tcu_state="BRAKE DOWN",
-                tcu_state_sub=f"skip →{target}",
-                g_lat=self._g_lat,
-                g_lon=self._g_lon,
-            )
+        if self._config.get("feat_fusion_logger"):
+            self._fusion_logger.trigger_snapshot("auto_double_down")
         if WINSOUND_OK and self._config.get("feat_sound_beep"):
             self._audio_executor.submit(winsound.Beep, 1500, 50)
         return True
@@ -1550,3 +1503,11 @@ class TCULogic:
 
         self._tcu_state = "OFFROAD"
         self._tcu_state_sub = "torque ready"
+
+    def _push_fusion_logger(self, td: Telemetry):
+        if self._config.get("feat_fusion_logger"):
+            self._fusion_logger.push(td, self.snapshot(td))
+
+    def trigger_fusion_snapshot(self, reason: str):
+        if self._config.get("feat_fusion_logger"):
+            self._fusion_logger.trigger_snapshot(reason)

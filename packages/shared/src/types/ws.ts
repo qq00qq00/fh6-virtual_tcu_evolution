@@ -60,6 +60,20 @@ export type WsInbound =
   | { type: 'network_changed'; ok?: boolean; error?: string; data: WebUrls }
   | { type: 'web_bind_changed'; ok?: boolean; error?: string; data: WebUrls }
   | { type: 'config_update'; data: Partial<ConfigMap> }
+  | { type: 'system_log'; level: string; msg: string }
+  | { type: 'fusion_snapshot'; reason: string; filename: string }
+
+export interface SystemLog {
+  time: number
+  level: string
+  msg: string
+}
+
+export interface TelemetryLog {
+  time: number
+  reason: string
+  filename: string
+}
 
 export interface TcuUiState {
   connected: boolean
@@ -74,4 +88,6 @@ export interface TcuUiState {
   shiftHistory: ShiftHistoryItem[]
   sessionStats: SessionStats | null
   watchdogStuck: boolean
+  systemLogs: SystemLog[]
+  telemetryLogs: TelemetryLog[]
 }

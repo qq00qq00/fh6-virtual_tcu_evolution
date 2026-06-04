@@ -8,7 +8,7 @@ import { SETTING_SLIDERS } from '@virtual-tcu/shared/config/settings'
 import { formatDuration, sliderUnit } from '@virtual-tcu/shared/utils/format'
 import { computed, ref } from 'vue'
 
-export const TAB_IDS = ['settings', 'stats', 'history', 'extras'] as const
+export const TAB_IDS = ['settings', 'stats', 'history', 'extras', 'logs'] as const
 export const CONFIG_TAB_IDS = ['settings', 'extras'] as const
 
 export function hotkeyInputValue(event: Event): string {

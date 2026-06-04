@@ -155,7 +155,8 @@ export default {
     settings: '设置',
     stats: '统计',
     history: '历史',
-    extras: '更多',
+    extras: '高级',
+    logs: '日志',
   },
   settings: {
     title: '换挡点',
@@ -185,7 +186,7 @@ export default {
     transientLock: '横摆瞬态锁定',
     driveStyle: '驾驶风格（自适应）',
     discordRpc: 'Discord 状态',
-    drivingLog: '行车日志 (CSV)',
+    fusionLogger: '融合快照日志',
     launchRpm: '目标转速',
     comfortUpWot: '全油门升档',
     dynamicUpWot: '全油门升档',
@@ -233,7 +234,16 @@ export default {
   },
   history: {
     title: '最近 20 次换挡',
-    empty: '暂无换挡记录',
+    empty: '暂无记录',
+  },
+  logs: {
+    systemLogs: '系统日志',
+    telemetryLogs: '遥测日志',
+    autoScroll: '自动滚动',
+    scrollLock: '锁定滚动',
+    waitingSystemEvents: '等待系统事件中...',
+    noSnapshotsRecorded: '暂无快照记录 (按 F8 或等待异常触发)',
+    saved: '已保存：',
   },
   extras: {
     networkTitle: 'Web UI 网络',
@@ -289,7 +299,7 @@ export default {
     vjoyShiftDown: '降挡按钮',
     saveAndRestart: '保存并重启后端',
     cycleMode: '切换模式',
-    toggleLog: '切换日志',
+    triggerSnapshot: '手动快照',
     fullTuning: '驾驶模式 — 完整调校',
   },
   modal: {

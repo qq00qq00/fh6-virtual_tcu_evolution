@@ -158,6 +158,7 @@ export default {
     stats: 'Stats',
     history: 'History',
     extras: 'Extras',
+    logs: 'Logs',
   },
   settings: {
     title: 'Shift Points',
@@ -187,7 +188,7 @@ export default {
     transientLock: 'Transient Lock (oversteer)',
     driveStyle: 'Drive Style (adaptive)',
     discordRpc: 'Discord Rich Presence',
-    drivingLog: 'Driving Log (CSV)',
+    fusionLogger: 'Fusion Snapshot Logger',
     launchRpm: 'Target RPM',
     comfortUpWot: 'Upshift WOT',
     dynamicUpWot: 'Upshift WOT',
@@ -236,6 +237,15 @@ export default {
   history: {
     title: 'Last 20 shifts',
     empty: 'No shifts yet',
+  },
+  logs: {
+    systemLogs: 'System Logs',
+    telemetryLogs: 'Telemetry Logs',
+    autoScroll: 'Auto-scroll',
+    scrollLock: 'Scroll lock',
+    waitingSystemEvents: 'Waiting for system events...',
+    noSnapshotsRecorded: 'No snapshots recorded yet. (Press F8 or trigger anomaly)',
+    saved: 'Saved:',
   },
   extras: {
     networkTitle: 'Web UI network',
@@ -294,7 +304,7 @@ export default {
     vjoyShiftDown: 'Downshift button',
     saveAndRestart: 'Save & Restart Backend',
     cycleMode: 'Cycle mode',
-    toggleLog: 'Toggle log',
+    triggerSnapshot: 'Manual Snapshot',
     fullTuning: 'Drive modes — full tuning',
   },
   modal: {

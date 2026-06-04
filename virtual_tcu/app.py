@@ -16,6 +16,7 @@ from virtual_tcu.input import KeyboardOutput
 from virtual_tcu.input.vjoy_output import VJoyOutput
 from virtual_tcu.logic.tcu import TCULogic
 from virtual_tcu.storage.profiles import ProfileStore
+from virtual_tcu.telemetry.log_capture import log_capture
 from virtual_tcu.telemetry.logger import TelemetryLogger
 from virtual_tcu.telemetry.receiver import TelemetryReceiver
 from virtual_tcu.web.server import WebServer
@@ -96,15 +97,13 @@ def setup_hotkeys(tcu: TCULogic, config: ConfigStore, logger: TelemetryLogger):
 
         return wrapped
 
-    def toggle_log():
-        if logger.is_recording:
-            logger.stop()
-        else:
-            logger.start("events")
-
     bindings = [
         (config.get("hotkey_cycle_mode", "f9"), "cycle_mode", lambda: tcu.cycle_mode()),
-        (config.get("hotkey_toggle_log", "f8"), "toggle_log", toggle_log),
+        (
+            config.get("hotkey_snapshot", "f8"),
+            "snapshot_dump",
+            lambda: tcu.trigger_fusion_snapshot("manual_dump"),
+        ),
     ]
 
     for key, name, fn in bindings:
@@ -125,6 +124,8 @@ def banner():
 
 def main():
     configure_stdio_utf8()
+    log_capture.install()
+
     if sys.platform != "win32":
         print("[ERROR] Windows only.")
         sys.exit(1)

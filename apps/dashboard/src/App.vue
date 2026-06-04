@@ -22,6 +22,8 @@
     shiftHistory,
     sessionStats,
     watchdogStuck,
+    systemLogs,
+    telemetryLogs,
     config,
     modal,
     onSetMode,
@@ -62,6 +64,8 @@
         :session-stats="sessionStats"
         :shift-history="shiftHistory"
         :watchdog-stuck="watchdogStuck"
+        :system-logs="systemLogs"
+        :telemetry-logs="telemetryLogs"
         @set-config="onSetConfig"
         @apply-network="onApplyNetwork"
         @reset-config="onResetConfig"

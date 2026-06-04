@@ -46,6 +46,8 @@ export function useDashboardApp() {
     shiftHistory: store.shiftHistory,
     sessionStats: store.sessionStats,
     watchdogStuck: store.watchdogStuck,
+    systemLogs: store.systemLogs,
+    telemetryLogs: store.telemetryLogs,
     config: store.config as ConfigMap,
     modal: store.modal,
     onSetMode: (mode: string) => store.setMode(mode as DriveMode),

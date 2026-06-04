@@ -396,6 +396,26 @@ class WebServer:
             print(f"  [OK] Web UI (dist: {paths.web_dist_dir()})")
         else:
             print(f"  [!] Web UI assets missing ({paths.web_dist_dir()})")
+
+        loop = asyncio.get_running_loop()
+
+        from virtual_tcu.telemetry.log_capture import log_capture
+
+        def on_sys_log(msg):
+            asyncio.run_coroutine_threadsafe(self._broadcast_json(msg), loop)
+
+        log_capture.add_listener(on_sys_log)
+
+        def on_fusion_snapshot(reason, filename):
+            asyncio.run_coroutine_threadsafe(
+                self._broadcast_json(
+                    {"type": "fusion_snapshot", "reason": reason, "filename": filename}
+                ),
+                loop,
+            )
+
+        self._tcu._fusion_logger.on_snapshot_created = on_fusion_snapshot
+
         asyncio.create_task(self.broadcast_loop())
 
     async def stop(self):
