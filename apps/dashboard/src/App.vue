@@ -26,7 +26,7 @@
     modal,
     onSetMode,
     onSetConfig,
-    onApplyNetwork,
+    onSaveNetworkAndRestart,
     onResetConfig,
     onRestartBackend,
     onLogStart,
@@ -63,7 +63,7 @@
         :shift-history="shiftHistory"
         :watchdog-stuck="watchdogStuck"
         @set-config="onSetConfig"
-        @apply-network="onApplyNetwork"
+        @save-network-and-restart="onSaveNetworkAndRestart"
         @reset-config="onResetConfig"
         @restart-backend="onRestartBackend"
         @export-profile="onExportProfile"

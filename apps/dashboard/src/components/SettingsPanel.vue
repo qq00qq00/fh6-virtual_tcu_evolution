@@ -30,7 +30,13 @@
   } from '@/config/settings'
   import { useNetworkSettings } from './network-settings'
 
-  import { sliderUnit, TAB_IDS, useConfirmReset, useSettingsPanel } from './settings-panel'
+  import {
+    sliderUnit,
+    TAB_IDS,
+    useConfirmReset,
+    useNetworkSaveAction,
+    useSettingsPanel,
+  } from './settings-panel'
 
   const props = withDefaults(
     defineProps<{
@@ -55,7 +61,7 @@
   )
   const emit = defineEmits([
     'setConfig',
-    'applyNetwork',
+    'saveNetworkAndRestart',
     'resetConfig',
     'exportProfile',
     'openImport',
@@ -92,15 +98,19 @@
     draftHost: networkDraftHost,
     draftWebPort: networkDraftWebPort,
     draftUdpPort: networkDraftUdpPort,
+    draftUdpHubEnabled: networkDraftUdpHubEnabled,
+    draftUdpHubTargets: networkDraftUdpHubTargets,
     dirty: networkDirty,
     applyError: networkApplyError,
+    allowsBindHostInput: allowsNetworkBindHostInput,
+    allowsPortInput: allowsNetworkPortInput,
+    allowsUdpHubTargetsInput: allowsNetworkUdpHubTargetsInput,
+    setUdpHubEnabled: setNetworkUdpHubEnabled,
+    setUdpHubTargets: setNetworkUdpHubTargets,
     validate: validateNetwork,
   } = useNetworkSettings(() => config.value)
 
-  function applyNetworkSettings() {
-    const parsed = validateNetwork()
-    if (parsed) emit('applyNetwork', parsed.host, parsed.webPort, parsed.udpPort)
-  }
+  const { saveNetworkAndRestart } = useNetworkSaveAction(validateNetwork, emit)
 
   const { confirmReset } = useConfirmReset(() => emit('resetConfig'))
 </script>
@@ -322,6 +332,7 @@
                     v-model:value="networkDraftHost"
                     placeholder="0.0.0.0"
                     maxlength="15"
+                    :allow-input="allowsNetworkBindHostInput"
                     size="small"
                     style="width: 120px; font-family: ui-monospace, monospace"
                   />
@@ -332,6 +343,7 @@
                     v-model:value="networkDraftWebPort"
                     placeholder="8765"
                     maxlength="5"
+                    :allow-input="allowsNetworkPortInput"
                     size="small"
                     style="width: 120px; font-family: ui-monospace, monospace"
                   />
@@ -342,6 +354,7 @@
                     v-model:value="networkDraftUdpPort"
                     placeholder="5555"
                     maxlength="5"
+                    :allow-input="allowsNetworkPortInput"
                     size="small"
                     style="width: 120px; font-family: ui-monospace, monospace"
                   />
@@ -354,18 +367,19 @@
                 <NFlex justify="space-between" align="center" :size="8">
                   <NText>{{ $t('extras.udpHubEnabled') }}</NText>
                   <NSwitch
-                    :value="configBool('udp_hub_enabled')"
-                    @update:value="emit('setConfig', 'udp_hub_enabled', $event)"
+                    :value="networkDraftUdpHubEnabled"
+                    @update:value="setNetworkUdpHubEnabled"
                   />
                 </NFlex>
                 <NFlex justify="space-between" align="center" :size="8">
                   <NText>{{ $t('extras.udpHubTargets') }}</NText>
                   <NInput
-                    :value="configText('udp_hub_targets')"
+                    :value="networkDraftUdpHubTargets"
                     :placeholder="$t('extras.udpHubTargetsPlaceholder')"
+                    :allow-input="allowsNetworkUdpHubTargetsInput"
                     size="small"
                     style="width: 220px; font-family: ui-monospace, monospace"
-                    @update:value="emit('setConfig', 'udp_hub_targets', $event)"
+                    @update:value="setNetworkUdpHubTargets"
                   />
                 </NFlex>
               </NFlex>
@@ -377,9 +391,9 @@
                   type="primary"
                   size="small"
                   :disabled="!networkDirty"
-                  @click="applyNetworkSettings"
+                  @click="saveNetworkAndRestart"
                 >
-                  {{ $t('extras.networkApply') }}
+                  {{ $t('extras.saveAndRestart') }}
                 </NButton>
                 <NText v-if="networkApplyError" depth="3" style="font-size: 12px; color: #dc2626">
                   {{ $t(`extras.networkErrors.${networkApplyError}`) }}

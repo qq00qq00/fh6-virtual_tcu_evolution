@@ -20,8 +20,14 @@ export function useDashboardApp() {
     store.setConfig(key, value)
   }
 
-  function onApplyNetwork(host: string, webPort: number, udpPort: number) {
-    store.applyNetwork(host, webPort, udpPort)
+  function onSaveNetworkAndRestart(
+    host: string,
+    webPort: number,
+    udpPort: number,
+    udpHubEnabled: boolean,
+    udpHubTargets: string,
+  ) {
+    store.saveNetworkAndRestart(host, webPort, udpPort, udpHubEnabled, udpHubTargets)
   }
 
   function onExportProfile() {
@@ -51,7 +57,7 @@ export function useDashboardApp() {
     onSetMode: (mode: string) => store.setMode(mode as DriveMode),
     onLogStart: (mode: string) => store.logStart(mode as 'events' | 'all'),
     onSetConfig,
-    onApplyNetwork,
+    onSaveNetworkAndRestart,
     onResetConfig: store.resetConfig,
     onRestartBackend: store.restartBackend,
     onLogStop: store.logStop,

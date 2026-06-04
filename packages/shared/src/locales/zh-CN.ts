@@ -235,7 +235,7 @@ export default {
     empty: '暂无换挡记录',
   },
   extras: {
-    networkTitle: 'Web UI 网络',
+    networkTitle: 'WebUI 与端口配置',
     networkHint:
       '监听地址设为 0.0.0.0 可允许局域网内其他设备访问。UDP 端口需与游戏内「Car Dash」遥测发送端口一致。填写完成后点击「确定」生效。',
     webHost: '监听 IP',
@@ -257,6 +257,9 @@ export default {
       invalid_host: 'IP 格式无效',
       invalid_port: '端口无效',
       invalidUdpPort: 'UDP 端口无效（1–65535）',
+      invalidUdpHubTargets: 'UDP Hub 目标格式无效',
+      udpHubTargetLoop: 'UDP Hub 目标不能指向当前遥测输入端口',
+      invalid_udp_hub_targets: 'UDP Hub 目标格式无效',
       udp_bind_failed: 'UDP 端口绑定失败，可能已被占用',
       use_set_network: '请使用「确定」按钮应用网络设置',
     },

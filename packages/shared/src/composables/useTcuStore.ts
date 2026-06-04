@@ -129,6 +129,23 @@ export function useTcuStore() {
     send({ type: 'set_network', web_host: host, web_port: webPort, udp_port: udpPort })
   }
 
+  function saveNetworkAndRestart(
+    host: string,
+    webPort: number,
+    udpPort: number,
+    udpHubEnabled: boolean,
+    udpHubTargets: string,
+  ) {
+    send({
+      type: 'save_network_and_restart',
+      web_host: host,
+      web_port: webPort,
+      udp_port: udpPort,
+      udp_hub_enabled: udpHubEnabled,
+      udp_hub_targets: udpHubTargets,
+    })
+  }
+
   function applyWebBind(host: string, port: number) {
     applyNetwork(host, port, Number(config.udp_port ?? 5555))
   }
@@ -266,6 +283,7 @@ export function useTcuStore() {
     setConfig,
     applyWebBind,
     applyNetwork,
+    saveNetworkAndRestart,
     resetConfig,
     restartBackend,
     logStart,

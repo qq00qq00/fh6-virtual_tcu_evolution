@@ -237,7 +237,7 @@ export default {
     empty: 'No shifts yet',
   },
   extras: {
-    networkTitle: 'Web UI network',
+    networkTitle: 'WebUI and port configuration',
     networkHint:
       'Set bind address to 0.0.0.0 to allow LAN access. UDP port must match FH6 Car Dash telemetry output. Click Apply when done.',
     webHost: 'Bind IP',
@@ -260,6 +260,9 @@ export default {
       invalid_host: 'Invalid IP address',
       invalid_port: 'Invalid port',
       invalidUdpPort: 'Invalid UDP port (1–65535)',
+      invalidUdpHubTargets: 'Invalid UDP hub target format',
+      udpHubTargetLoop: 'UDP hub target cannot point back to the telemetry input port',
+      invalid_udp_hub_targets: 'Invalid UDP hub target format',
       udp_bind_failed: 'UDP bind failed — port may be in use',
       use_set_network: 'Use the Apply button to save network settings',
     },

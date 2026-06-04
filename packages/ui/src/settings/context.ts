@@ -50,6 +50,13 @@ export interface SettingsContext {
     modal: { open: boolean; title: string; text: string; readOnly: boolean; mode: string }
     setMode: (id: string) => void
     setConfig: (key: string, value: unknown) => void
+    saveNetworkAndRestart: (
+      host: string,
+      webPort: number,
+      udpPort: number,
+      udpHubEnabled: boolean,
+      udpHubTargets: string,
+    ) => void
     resetConfig: () => void
     send: (msg: Record<string, unknown>) => void
     closeModal: () => void
@@ -76,10 +83,17 @@ export interface SettingsContext {
   networkDraftHost: Ref<string>
   networkDraftWebPort: Ref<string>
   networkDraftUdpPort: Ref<string>
+  networkDraftUdpHubEnabled: Ref<boolean>
+  networkDraftUdpHubTargets: Ref<string>
   networkDirty: Ref<boolean>
   networkApplyError: Ref<string>
   networkApplyOk: Ref<boolean>
   networkApplying: Ref<boolean>
+  allowsNetworkBindHostInput: (value: string) => boolean
+  allowsNetworkPortInput: (value: string) => boolean
+  allowsNetworkUdpHubTargetsInput: (value: string) => boolean
+  setNetworkUdpHubEnabled: (value: boolean) => void
+  setNetworkUdpHubTargets: (value: string) => void
   applyNetworkSettings: () => void
   onLogStart: (mode: 'events' | 'all') => void
   onLogStop: () => void

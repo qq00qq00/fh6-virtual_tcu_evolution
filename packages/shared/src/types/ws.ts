@@ -40,6 +40,14 @@ export type WsOutbound =
   | { type: 'set_config'; key: string; value: string | number | boolean }
   | { type: 'set_web_bind'; host: string; port: number }
   | { type: 'set_network'; web_host: string; web_port: number; udp_port: number }
+  | {
+    type: 'save_network_and_restart'
+    web_host: string
+    web_port: number
+    udp_port: number
+    udp_hub_enabled: boolean
+    udp_hub_targets: string
+  }
   | { type: 'reset_config' }
   | { type: 'log_start'; mode: string }
   | { type: 'log_stop' }

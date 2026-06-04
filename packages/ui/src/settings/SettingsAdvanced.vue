@@ -31,10 +31,17 @@
     networkDraftHost,
     networkDraftWebPort,
     networkDraftUdpPort,
+    networkDraftUdpHubEnabled,
+    networkDraftUdpHubTargets,
     networkDirty,
     networkApplyError,
     networkApplyOk,
     networkApplying,
+    allowsNetworkBindHostInput,
+    allowsNetworkPortInput,
+    allowsNetworkUdpHubTargetsInput,
+    setNetworkUdpHubEnabled,
+    setNetworkUdpHubTargets,
     applyNetworkSettings,
     onExportProfile,
     onOpenImport,
@@ -44,21 +51,6 @@
     configText,
     sliderUnit,
   } = ctx
-
-  function applyAndRestart() {
-    // Save network config keys individually via set_config so they are
-    // written to tcu_config.json synchronously before the backend is
-    // killed.  This avoids the race where set_network's async listener
-    // restart is interrupted by the process kill.
-    const host = networkDraftHost.value
-    const webPort = networkDraftWebPort.value
-    const udpPort = networkDraftUdpPort.value
-    if (host) store.setConfig('web_host', host)
-    if (webPort) store.setConfig('web_port', Number(webPort))
-    if (udpPort) store.setConfig('udp_port', Number(udpPort))
-    // Brief delay so the WS messages reach the backend and flush to disk.
-    setTimeout(() => restartBackend(), 600)
-  }
 
   const outputModeValue = computed(() => {
     const v = (store.config as Record<string, unknown>).output_mode
@@ -91,6 +83,7 @@
               v-model:value="networkDraftHost"
               placeholder="0.0.0.0"
               maxlength="15"
+              :allow-input="allowsNetworkBindHostInput"
               size="small"
               style="width: 120px; font-family: ui-monospace, monospace"
             />
@@ -103,6 +96,7 @@
               v-model:value="networkDraftWebPort"
               placeholder="8765"
               maxlength="5"
+              :allow-input="allowsNetworkPortInput"
               size="small"
               style="width: 120px; font-family: ui-monospace, monospace"
             />
@@ -115,6 +109,7 @@
               v-model:value="networkDraftUdpPort"
               placeholder="5555"
               maxlength="5"
+              :allow-input="allowsNetworkPortInput"
               size="small"
               style="width: 120px; font-family: ui-monospace, monospace"
             />
@@ -128,18 +123,19 @@
         <NFlex justify="space-between" align="center" :size="8">
           <NText>{{ t('extras.udpHubEnabled') }}</NText>
           <NSwitch
-            :value="configBool('udp_hub_enabled')"
-            @update:value="store.setConfig('udp_hub_enabled', $event)"
+            :value="networkDraftUdpHubEnabled"
+            @update:value="setNetworkUdpHubEnabled"
           />
         </NFlex>
         <NFlex justify="space-between" align="center" :size="8">
           <NText>{{ t('extras.udpHubTargets') }}</NText>
           <NInput
-            :value="configText('udp_hub_targets')"
+            :value="networkDraftUdpHubTargets"
             :placeholder="t('extras.udpHubTargetsPlaceholder')"
+            :allow-input="allowsNetworkUdpHubTargetsInput"
             size="small"
             style="width: 260px; font-family: ui-monospace, monospace"
-            @update:value="store.setConfig('udp_hub_targets', $event)"
+            @update:value="setNetworkUdpHubTargets"
           />
         </NFlex>
       </NFlex>
@@ -154,7 +150,7 @@
           :loading="networkApplying"
           @click="applyNetworkSettings"
         >
-          {{ t('extras.networkApply') }}
+          {{ t('extras.saveAndRestart') }}
         </NButton>
         <NText v-if="networkApplyOk" depth="3" style="font-size: 12px; color: #16a34a">
           {{ t('extras.networkApplyOk') }}
@@ -162,15 +158,6 @@
         <NText v-else-if="networkApplyError" depth="3" style="font-size: 12px; color: #dc2626">
           {{ t(`extras.networkErrors.${networkApplyError}`) }}
         </NText>
-        <NButton
-          v-if="networkDirty"
-          type="warning"
-          size="small"
-          style="margin-left: 8px"
-          @click="applyAndRestart()"
-        >
-          {{ t('extras.saveAndRestart') }}
-        </NButton>
       </NFlex>
     </NCard>
 
