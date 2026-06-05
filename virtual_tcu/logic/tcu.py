@@ -84,6 +84,9 @@ class TCULogic:
         self._last_packet_time = 0.0
         self._prev_gear = -1
         self._we_shifted = False
+        self._pending_upshift_from: int | None = None
+        self._pending_upshift_until = 0.0
+        self._upshift_cap_by_key: dict[tuple, int] = {}
 
         self._reverse_lock_until = 0.0
         self._current_car_key: tuple | None = None
@@ -172,6 +175,24 @@ class TCULogic:
         self._rev_limiter._rpm_window.pop(ck, None)
         self._rev_limiter._peak_hold.pop(ck, None)
         self._profile_baseline_gear1.pop(ck, None)
+        self._upshift_cap_by_key.pop(ck, None)
+
+    def _resolve_pending_upshift(self, td: Telemetry, now: float) -> None:
+        """Clear or cap upshift targets once the game confirms or rejects a shift."""
+        if self._pending_upshift_from is None:
+            return
+        if td.gear > self._pending_upshift_from:
+            self._pending_upshift_from = None
+            self._pending_upshift_until = 0.0
+            if td.car_key[0] > 0:
+                self._upshift_cap_by_key[td.car_key] = 10
+            return
+        if now >= self._pending_upshift_until:
+            ck = td.car_key
+            if ck[0] > 0:
+                self._upshift_cap_by_key[ck] = min(self._upshift_cap_by_key.get(ck, 10), td.gear)
+            self._pending_upshift_from = None
+            self._pending_upshift_until = 0.0
 
     def _load_profiles(self, ck: tuple, td: Telemetry) -> None:
         """Restore learning data from ProfileStore for *ck*."""
@@ -449,6 +470,8 @@ class TCULogic:
             self._reverse_lock_until = 0.0
             self._launch_armed = False
             self._slip_streak = 0
+            self._pending_upshift_from = None
+            self._pending_upshift_until = 0.0
             self._last_hard_brake_time = 0.0
             self._brake_history.clear()
             self._throttle_history.clear()
@@ -460,12 +483,18 @@ class TCULogic:
 
         self._last_packet_time = now
 
+        self._resolve_pending_upshift(td, now)
+
         if td.is_shifting:
             self._tcu_state = "SHIFTING"
             self._tcu_state_sub = "Forza mid-shift"
             return
 
         if td.gear != self._prev_gear and td.gear > 0 and self._prev_gear > 0:
+            if td.gear > self._prev_gear:
+                self._upshift_cap_by_key[td.car_key] = 10
+                self._pending_upshift_from = None
+                self._pending_upshift_until = 0.0
             if not self._we_shifted:
                 airborne = self._config.get("feat_airtime_lock") and self._airtime.is_airborne
                 if td.brake < 0.30 and not airborne:
@@ -582,6 +611,8 @@ class TCULogic:
             self._current_car_key = ck
             self._peak_rpm = 0.0
             self._peak_g = 0.0
+            self._pending_upshift_from = None
+            self._pending_upshift_until = 0.0
             self._clear_learning_for_key(ck)
             self._load_profiles(ck, td)
 
@@ -679,14 +710,23 @@ class TCULogic:
             return False
         if self._cornering_locked:
             return False
+        now = time.time()
+        if self._pending_upshift_from == td.gear and now < self._pending_upshift_until:
+            return False
+        ck = td.car_key
+        if ck[0] > 0 and td.gear >= self._upshift_cap_by_key.get(ck, 10):
+            return False
         if td.gear <= 2:
             lock_ms = max(lock_ms, Cfg.LOW_GEAR_LOCK_MS)
 
         self._tcu_state = state
         self._tcu_state_sub = sub
-        now = time.time()
         self._lock_until = now + (lock_ms / 1000.0)
-        self._no_upshift_until = max(self._no_upshift_until, self._lock_until)
+        self._pending_upshift_from = td.gear
+        self._pending_upshift_until = now + Cfg.UPSHIFT_PENDING_TIMEOUT_S
+        self._no_upshift_until = max(
+            self._no_upshift_until, self._lock_until, self._pending_upshift_until
+        )
         if downshift_lock_s > 0:
             self._no_downshift_until = max(self._no_downshift_until, now + downshift_lock_s)
         self._we_shifted = True
