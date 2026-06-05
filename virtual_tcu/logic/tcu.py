@@ -24,6 +24,12 @@ from virtual_tcu.state.session_stats import SessionStats
 from virtual_tcu.state.shift_history import ShiftHistory
 from virtual_tcu.state.watchdog import Watchdog
 from virtual_tcu.storage.profiles import ProfileStore
+from virtual_tcu.telemetry.car_key import (
+    MIN_GEAR1_SAMPLES_FOR_DRIFT,
+    RATIO_DRIFT_THRESHOLD,
+    car_key_base,
+    storage_key,
+)
 from virtual_tcu.telemetry.fusion_logger import FusionSnapshotLogger
 from virtual_tcu.telemetry.logger import TelemetryLogger
 from virtual_tcu.telemetry.model import Telemetry
@@ -81,6 +87,9 @@ class TCULogic:
 
         self._reverse_lock_until = 0.0
         self._current_car_key: tuple | None = None
+        self._tune_id_by_base: dict[tuple[int, int, int], int] = {}
+        self._profile_baseline_gear1: dict[tuple, float] = {}
+        self._active_tune_signature: int | None = None
         self._was_race_on = False
 
         self._reverse_hold = ReverseHoldDetector(kb)
@@ -138,22 +147,96 @@ class TCULogic:
             from datetime import datetime
 
             profile["updated_at"] = datetime.now(UTC).isoformat()
+            if self._current_car_key == ck:
+                # Last seen telemetry for this slot (set in _sync_profile_tune_id).
+                sig = getattr(self, "_active_tune_signature", None)
+                if sig is not None:
+                    profile["tune_signature"] = sig
             self._profiles.set(ck, profile)
 
-    def _load_profiles(self, ck: tuple):
+    def _sync_profile_tune_id(self, td: Telemetry) -> None:
+        """Bind telemetry to the active per-tune profile slot for this car."""
+        base = car_key_base(td)
+        if base[0] <= 0:
+            return
+        if base not in self._tune_id_by_base:
+            self._tune_id_by_base[base] = td.tune_signature
+        td.profile_tune_id = self._tune_id_by_base[base]
+        self._active_tune_signature = td.tune_signature
+
+    def _clear_learning_for_key(self, ck: tuple) -> None:
+        self._calibrator._ratios.pop(ck, None)
+        self._calibrator._counts.pop(ck, None)
+        self._power_curve._fits.pop(ck, None)
+        self._rev_limiter._redline.pop(ck, None)
+        self._rev_limiter._rpm_window.pop(ck, None)
+        self._rev_limiter._peak_hold.pop(ck, None)
+        self._profile_baseline_gear1.pop(ck, None)
+
+    def _load_profiles(self, ck: tuple, td: Telemetry) -> None:
         """Restore learning data from ProfileStore for *ck*."""
         data = self._profiles.get(ck)
         if data is None:
+            return
+        stored_sig = data.get("tune_signature")
+        if stored_sig is not None and stored_sig != td.tune_signature:
+            print(
+                f"[Profiles] engine/drivetrain changed for {storage_key(ck)} "
+                f"(sig {stored_sig} -> {td.tune_signature}), not loading stale data"
+            )
             return
         if "gear_ratios" in data:
             self._calibrator.load(
                 ck,
                 {"ratios": data["gear_ratios"], "counts": data.get("gear_counts", {})},
             )
+            ratios = data["gear_ratios"]
+            r1 = ratios.get(1) or ratios.get("1")
+            if r1 is not None:
+                self._profile_baseline_gear1[ck] = float(r1)
         if "power_curve" in data:
             self._power_curve.load(ck, data["power_curve"])
         if "rev_limiter" in data:
             self._rev_limiter.load(ck, data["rev_limiter"])
+
+    def _split_tune_profile(self, td: Telemetry, reason: str) -> None:
+        """Allocate a new tune_id slot when saved gear ratios no longer match the car."""
+        base = car_key_base(td)
+        old_ck = self._current_car_key
+        if old_ck is not None:
+            self.save_profiles()
+        new_id = int(time.time())
+        self._tune_id_by_base[base] = new_id
+        td.profile_tune_id = new_id
+        new_ck = td.car_key
+        if old_ck is not None:
+            self._clear_learning_for_key(old_ck)
+        self._clear_learning_for_key(new_ck)
+        self._current_car_key = new_ck
+        print(
+            f"[Profiles] new tune slot {storage_key(new_ck)} ({reason})"
+            + (f", replaced {storage_key(old_ck)}" if old_ck else "")
+        )
+
+    def _check_tune_ratio_drift(self, td: Telemetry) -> None:
+        if not self._config.get("feat_per_car_profiles", True):
+            return
+        ck = self._current_car_key
+        if ck is None or td.gear != 1:
+            return
+        baseline = self._profile_baseline_gear1.get(ck)
+        if baseline is None or baseline <= 0:
+            return
+        if td.speed_kmh < GearRatioCalibrator.MIN_SPEED_KMH:
+            return
+        counts = self._calibrator._counts.get(ck, {})
+        if counts.get(1, 0) < MIN_GEAR1_SAMPLES_FOR_DRIFT:
+            return
+        live = self._calibrator.get_ratios(ck).get(1)
+        if live is None or live <= 0:
+            return
+        if abs(live - baseline) / baseline > RATIO_DRIFT_THRESHOLD:
+            self._split_tune_profile(td, "gear ratio drift")
 
     def shutdown(self):
         self.save_profiles()
@@ -432,6 +515,7 @@ class TCULogic:
 
         self._update_turbo(td, dt)
         self._update_attitude(td)
+        self._sync_profile_tune_id(td)
         self._calibrator.observe(td)
 
         self._rev_limiter.observe(td, self._last_downshift_time, now)
@@ -498,16 +582,10 @@ class TCULogic:
             self._current_car_key = ck
             self._peak_rpm = 0.0
             self._peak_g = 0.0
-            # Reset per-tune learning data so stale ratios / curves from a
-            # different build don't poison shift decisions.
-            self._calibrator._ratios.pop(ck, None)
-            self._calibrator._counts.pop(ck, None)
-            self._power_curve._fits.pop(ck, None)
-            self._rev_limiter._redline.pop(ck, None)
-            self._rev_limiter._rpm_window.pop(ck, None)
-            self._rev_limiter._peak_hold.pop(ck, None)
-            # Restore previously-saved learning data for this car+tune.
-            self._load_profiles(ck)
+            self._clear_learning_for_key(ck)
+            self._load_profiles(ck, td)
+
+        self._check_tune_ratio_drift(td)
 
         current_mode = self.mode
         if current_mode != self._last_processed_mode:

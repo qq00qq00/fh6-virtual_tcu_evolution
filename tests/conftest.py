@@ -7,9 +7,14 @@ time is replaced by a controllable clock so shift cooldowns/locks are
 deterministic.
 """
 
+import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
+
+sys.modules.setdefault("keyboard", MagicMock())
+
 import virtual_tcu.logic.tcu as tcu_module
 from virtual_tcu.config.store import ConfigStore
 from virtual_tcu.input.interface import OutputInterface
@@ -18,7 +23,19 @@ from virtual_tcu.storage.profiles import ProfileStore
 from virtual_tcu.telemetry.logger import TelemetryLogger
 from virtual_tcu.telemetry.model import Telemetry
 
-CAR_KEY = (100, 5, 800)
+CAR_KEY_BASE = (100, 5, 800)
+
+
+def _default_car_key() -> tuple[int, int, int, int]:
+    probe = Telemetry()
+    probe.engine_max_rpm = 8000.0
+    probe.car_ordinal = CAR_KEY_BASE[0]
+    probe.car_class = CAR_KEY_BASE[1]
+    probe.pi = CAR_KEY_BASE[2]
+    return probe.car_key
+
+
+CAR_KEY = _default_car_key()
 
 
 class FakeOutput(OutputInterface):
@@ -65,12 +82,14 @@ def make_telemetry(**kw) -> Telemetry:
     """A plausible mid-drive telemetry frame; override fields via kwargs."""
     t = Telemetry()
     t.engine_max_rpm = 8000.0
-    t.car_ordinal = CAR_KEY[0]
-    t.car_class = CAR_KEY[1]
-    t.pi = CAR_KEY[2]
+    t.car_ordinal = CAR_KEY_BASE[0]
+    t.car_class = CAR_KEY_BASE[1]
+    t.pi = CAR_KEY_BASE[2]
     t.accel_y = 0.0  # grounded by default (see fh6-accel-y-airborne-signal)
     for k, v in kw.items():
         setattr(t, k, v)
+    if not t.profile_tune_id:
+        t.profile_tune_id = t.tune_signature
     return t
 
 
