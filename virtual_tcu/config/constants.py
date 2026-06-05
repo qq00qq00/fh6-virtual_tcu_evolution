@@ -10,6 +10,8 @@ class Cfg:
     SHIFT_COOLDOWN_MS = 350
     POST_BRAKE_GRACE_MS = 600
     LOW_GEAR_LOCK_MS = 800
+    # Wait for the game to acknowledge an upshift before retrying (prevents E-key spam).
+    UPSHIFT_PENDING_TIMEOUT_S = 1.2
     ANTI_STALL_RPM = 1100
     MIN_SPEED_KMH = 12.0
     OVER_REV_LIMIT = 1.02

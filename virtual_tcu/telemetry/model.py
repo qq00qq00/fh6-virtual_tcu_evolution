@@ -1,5 +1,13 @@
 from dataclasses import dataclass
 
+from virtual_tcu.telemetry.car_key import (
+    CarKey,
+    CarKeyBase,
+    car_key_base,
+    compute_tune_signature,
+    make_car_key,
+)
+
 FH6_PACKET_SIZE = 324
 
 
@@ -37,6 +45,8 @@ class Telemetry:
     slip_rl: float = 0.0
     slip_rr: float = 0.0
     is_shifting: bool = False
+    # Set by TCULogic — selects the active profile tune slot for this session.
+    profile_tune_id: int = 0
 
     @property
     def rear_slip(self) -> float:
@@ -72,14 +82,23 @@ class Telemetry:
         return self.brake_raw / 255.0
 
     @property
-    def car_key(self) -> tuple[int, int, int]:
-        """Composite vehicle identifier — distinct per car model *and* tune.
+    def car_key_base(self) -> CarKeyBase:
+        return car_key_base(self)
 
-        ``car_ordinal`` alone is not enough: the same car with a different
-        tune (gearing / engine swap / PI change) keeps the same ordinal,
-        so the learning systems would silently reuse stale data.
-        Including ``car_class`` and ``pi`` disambiguates tuned variants."""
-        return (self.car_ordinal, self.car_class, self.pi)
+    @property
+    def tune_signature(self) -> int:
+        """Engine/drivetrain fingerprint — changes when those parts of the build change."""
+        return compute_tune_signature(self)
+
+    @property
+    def car_key(self) -> CarKey:
+        """Composite vehicle + tune slot identifier for learning and profiles.
+
+        ``tune_id`` defaults to ``tune_signature``; TCULogic may assign a new
+        ``profile_tune_id`` after detecting stale gear-ratio data (e.g. same PI
+        but different gearing)."""
+        tune_id = self.profile_tune_id or self.tune_signature
+        return make_car_key(self.car_key_base, tune_id)
 
     @property
     def drivetrain_name(self) -> str:

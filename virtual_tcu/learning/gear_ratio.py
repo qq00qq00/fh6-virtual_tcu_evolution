@@ -4,18 +4,43 @@ from virtual_tcu.telemetry.model import Telemetry
 class GearRatioCalibrator:
     """Learns rpm/kmh ratio per car/gear. The ratio is a fixed property of
     the transmission — valid whenever the wheels grip and no shift is in
-    progress, regardless of throttle or whether speed is steady. Uses a
-    running mean with outlier rejection: an estimate exists from the first
-    valid sample and converges within a second of driving in each gear."""
+    progress, under positive drive torque. Uses a running mean with outlier
+    rejection: an estimate exists from the first valid sample and converges
+    within a second of driving in each gear."""
 
     MIN_SPEED_KMH = 25.0
     OUTLIER_TOLERANCE = 0.18
     LEARN_RATE = 0.08
     OUTLIER_GRACE = 5  # samples before outlier rejection kicks in
+    # Reject samples that would collapse spacing between adjacent gears.
+    ORDER_TOLERANCE = 0.03
 
     def __init__(self):
         self._ratios: dict[tuple, dict[int, float]] = {}
         self._counts: dict[tuple, dict[int, int]] = {}
+
+    @staticmethod
+    def _is_driven_sample(td: Telemetry) -> bool:
+        """Ratio is only meaningful when the engine drives the wheels."""
+        if td.torque_nm <= 0:
+            return False
+        # Overrun / snow-downhill drag: full throttle but wheels turning the crank.
+        if td.throttle > 0.45 and td.power_w < 0:
+            return False
+        return True
+
+    def _order_ok(self, car_ratios: dict[int, float], gear: int, ratio: float, n: int) -> bool:
+        """Higher gears must have a lower rpm/kmh ratio than lower gears."""
+        if n < self.OUTLIER_GRACE:
+            return True
+        tol = self.ORDER_TOLERANCE
+        lower = car_ratios.get(gear - 1)
+        if lower is not None and ratio >= lower * (1.0 - tol):
+            return False
+        higher = car_ratios.get(gear + 1)
+        if higher is not None and ratio <= higher * (1.0 + tol):
+            return False
+        return True
 
     def observe(self, td: Telemetry):
         ck = td.car_key
@@ -24,6 +49,8 @@ class GearRatioCalibrator:
         if td.is_shifting:
             return
         if td.speed_kmh < self.MIN_SPEED_KMH or td.current_rpm <= 0:
+            return
+        if not self._is_driven_sample(td):
             return
         # Wheelspin breaks the wheel-ground relationship → invalid ratio
         if td.rear_slip > 0.8 or td.front_slip > 0.8:
@@ -48,6 +75,8 @@ class GearRatioCalibrator:
         if n >= self.OUTLIER_GRACE:
             if abs(ratio - current) / current > self.OUTLIER_TOLERANCE:
                 return
+        if not self._order_ok(car_ratios, gear, ratio, n):
+            return
         # Running mean: true average early, stable low-pass once mature
         rate = max(self.LEARN_RATE, 1.0 / (n + 1))
         car_ratios[gear] = current + rate * (ratio - current)
