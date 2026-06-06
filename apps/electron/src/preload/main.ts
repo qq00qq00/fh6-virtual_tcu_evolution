@@ -7,14 +7,25 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 export interface UpdaterCheckResult {
   ok: boolean
-  info?: { version?: string; releaseDate?: string } | null
+  info?: { version?: string; releaseDate?: string; releaseNotes?: unknown } | null
   currentVersion?: string
   error?: string
 }
 
 export interface UpdaterStatus {
   kind: 'checking' | 'available' | 'not-available' | 'progress' | 'downloaded' | 'error'
-  info?: { version?: string; percent?: number; transferred?: number; total?: number }
+  info?: {
+    version?: string
+    releaseNotes?: unknown
+    percent?: number
+    transferred?: number
+    total?: number
+  }
+  error?: string
+}
+
+export interface UpdaterDownloadResult {
+  ok: boolean
   error?: string
 }
 
@@ -30,7 +41,9 @@ const api = {
   openExternal: (url: string): Promise<IpcActionResult> =>
     ipcRenderer.invoke('app:open-external', url),
   openSettings: () => ipcRenderer.invoke('app:open-settings'),
+  setLocale: (locale: string): Promise<void> => ipcRenderer.invoke('app:set-locale', locale),
   checkForUpdates: (): Promise<UpdaterCheckResult> => ipcRenderer.invoke('updater:check'),
+  downloadUpdate: (): Promise<UpdaterDownloadResult> => ipcRenderer.invoke('updater:download'),
   quitAndInstallUpdate: () => ipcRenderer.invoke('updater:quit-and-install'),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
   getBackendInfo: () => ipcRenderer.invoke('app:get-backend-info'),

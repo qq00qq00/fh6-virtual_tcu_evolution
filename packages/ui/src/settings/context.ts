@@ -119,7 +119,11 @@ export interface SettingsContext {
   updater: {
     state: Ref<{ kind: string; version?: string; percent?: number; message?: string }>
     currentVersion: Ref<string>
+    showUpdateModal: Ref<boolean>
     check: () => void
+    download: () => void
+    dismissModal: () => void
+    openReleasePage: () => void
     install: () => void
   }
 }

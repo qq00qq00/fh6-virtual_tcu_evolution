@@ -13,15 +13,16 @@ import {
 } from '@virtual-tcu/shared/config/settings'
 import { setAppLocale } from '@virtual-tcu/shared/i18n'
 import { formatDuration, sliderUnit } from '@virtual-tcu/shared/utils/format'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 // Replace `./assets/brand-icon.svg` with your PNG/SVG and update the import path if needed.
 import brandIconUrl from './assets/brand-icon.png'
 
+import { GITHUB_REPO_URL } from './github'
+import { useUpdateAvailableModal } from './UpdateAvailableModal'
 import { useUpdater } from './useUpdater'
 
-export const GITHUB_REPO_URL = 'https://github.com/Forza-Love/fh6-virtual_tcu'
-export { brandIconUrl }
+export { brandIconUrl, GITHUB_REPO_URL }
 
 export type SettingsTabKey =
   | 'overview'
@@ -162,6 +163,7 @@ export function useSettingsApp() {
   function setLocale(value: AppLocale) {
     locale.value = value
     setAppLocale(value)
+    void window.tcu?.setLocale(value)
   }
 
   function onLogStart(mode: 'events' | 'all') {
@@ -225,6 +227,16 @@ export function useSettingsApp() {
   )
 
   const updater = useUpdater()
+  const updateModal = useUpdateAvailableModal({
+    show: updater.showUpdateModal,
+    state: updater.state,
+    pendingVersion: updater.pendingVersion,
+    pendingReleaseNotes: updater.pendingReleaseNotes,
+  })
+
+  onMounted(() => {
+    void window.tcu?.setLocale(locale.value as AppLocale)
+  })
 
   return {
     t,
@@ -278,6 +290,7 @@ export function useSettingsApp() {
     toggleHud,
     openGithub,
     updater,
+    updateModal,
     store,
   }
 }

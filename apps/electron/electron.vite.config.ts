@@ -9,7 +9,7 @@ const versionDefine = { __APP_VERSION__: JSON.stringify(pkg.version) }
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@virtual-tcu/shared'] })],
     build: {
       outDir: resolve(__dirname, 'out/main'),
       rollupOptions: {

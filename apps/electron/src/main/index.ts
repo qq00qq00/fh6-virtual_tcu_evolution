@@ -18,6 +18,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, shell, Tray } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { BackendLifecycle } from './backend-lifecycle'
+import { detectTrayLocale, getTrayLabels, setTrayLocale } from './tray-i18n'
 import { openExternalUrl } from './url-policy'
 
 const backendLifecycle = new BackendLifecycle()
@@ -218,19 +219,13 @@ function createHudWindow() {
 
 // ----- Tray ------------------------------------------------------------------
 
-function createTray() {
-  const iconPath = app.isPackaged
-    ? join(process.resourcesPath, 'icon.ico')
-    : join(__dirname, '..', '..', 'build', 'icon.ico')
-  const icon = nativeImage.createFromPath(iconPath)
-  tray = new Tray(icon)
-  tray.setToolTip('Virtual TCU')
-
-  const menu = Menu.buildFromTemplate([
-    { label: 'Settings', click: () => createSettingsWindow() },
-    { label: 'Open Dashboard in Browser', click: () => openDashboardInBrowser() },
+function buildTrayMenu() {
+  const labels = getTrayLabels()
+  return Menu.buildFromTemplate([
+    { label: labels.settings, click: () => createSettingsWindow() },
+    { label: labels.openDashboard, click: () => openDashboardInBrowser() },
     {
-      label: 'Toggle HUD',
+      label: labels.toggleHud,
       click: () => {
         if (hudWindow && hudWindow.isVisible()) hudWindow.hide()
         else createHudWindow()
@@ -238,7 +233,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: 'Restart Backend',
+      label: labels.restartBackend,
       click: () => {
         void backendLifecycle.restart().catch((err) => {
           console.error('[backend] restart failed:', err)
@@ -247,14 +242,30 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: 'Quit',
+      label: labels.quit,
       click: () => {
         isQuitting = true
         app.quit()
       },
     },
   ])
-  tray.setContextMenu(menu)
+}
+
+function rebuildTrayMenu() {
+  if (!tray) return
+  const labels = getTrayLabels()
+  tray.setToolTip(labels.tooltip)
+  tray.setContextMenu(buildTrayMenu())
+}
+
+function createTray() {
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'icon.ico')
+    : join(__dirname, '..', '..', 'build', 'icon.ico')
+  const icon = nativeImage.createFromPath(iconPath)
+  setTrayLocale(detectTrayLocale())
+  tray = new Tray(icon)
+  rebuildTrayMenu()
   tray.on('click', () => {
     createSettingsWindow()
   })
@@ -300,6 +311,12 @@ function registerIpc() {
 
   ipcMain.handle('app:open-settings', () => {
     createSettingsWindow()
+  })
+
+  ipcMain.handle('app:set-locale', (_e, value: unknown) => {
+    if (value !== 'en' && value !== 'zh-CN') return
+    setTrayLocale(value)
+    rebuildTrayMenu()
   })
 
   ipcMain.handle('hud:toggle', () => {
@@ -352,6 +369,21 @@ function registerIpc() {
     }
   })
 
+  ipcMain.handle('updater:download', async () => {
+    if (!app.isPackaged) {
+      return { ok: false, error: 'Auto-update is only available in packaged builds' }
+    }
+    try {
+      await autoUpdater.downloadUpdate()
+      return { ok: true }
+    } catch (err) {
+      return {
+        ok: false,
+        error: (err as Error).message,
+      }
+    }
+  })
+
   ipcMain.handle('updater:quit-and-install', () => {
     autoUpdater.quitAndInstall()
   })
@@ -371,7 +403,7 @@ function setupAutoUpdater() {
     owner: 'Forza-Love',
     repo: 'fh6-virtual_tcu',
   })
-  autoUpdater.autoDownload = true
+  autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('checking-for-update', () => {

@@ -39,6 +39,7 @@
   } from 'naive-ui'
   import { computed, h, provide } from 'vue'
   import { brandIconUrl, useSettingsApp } from './SettingsApp'
+  import UpdateAvailableModal from './UpdateAvailableModal.vue'
 
   const ctx = useSettingsApp()
   provide(settingsContextKey, ctx as any)
@@ -54,6 +55,7 @@
     openDashboard,
     toggleHud,
     updater,
+    updateModal,
     store,
   } = ctx
 
@@ -188,6 +190,20 @@
         </NTabs>
       </NLayoutContent>
     </NLayout>
+
+    <UpdateAvailableModal
+      :show="updater.showUpdateModal.value"
+      :version="updateModal.version.value"
+      :release-notes="updateModal.releaseNotes.value"
+      :downloading="updateModal.downloading.value"
+      :download-percent="updateModal.downloadPercent.value"
+      :downloaded="updateModal.downloaded.value"
+      :can-download="updateModal.canDownload.value"
+      @update:show="(v) => !v && updater.dismissModal()"
+      @download="updater.download()"
+      @open-github="updater.openReleasePage()"
+      @install="updater.install()"
+    />
 
     <NModal
       :show="store.modal.open"
