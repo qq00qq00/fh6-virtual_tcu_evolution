@@ -87,6 +87,7 @@ class TCULogic:
         self._pending_upshift_from: int | None = None
         self._pending_upshift_until = 0.0
         self._upshift_cap_by_key: dict[tuple, int] = {}
+        self._upshift_cap_set_at: dict[tuple, float] = {}
 
         self._reverse_lock_until = 0.0
         self._current_car_key: tuple | None = None
@@ -176,6 +177,7 @@ class TCULogic:
         self._rev_limiter._peak_hold.pop(ck, None)
         self._profile_baseline_gear1.pop(ck, None)
         self._upshift_cap_by_key.pop(ck, None)
+        self._upshift_cap_set_at.pop(ck, None)
 
     def _resolve_pending_upshift(self, td: Telemetry, now: float) -> None:
         """Clear or cap upshift targets once the game confirms or rejects a shift."""
@@ -185,14 +187,48 @@ class TCULogic:
             self._pending_upshift_from = None
             self._pending_upshift_until = 0.0
             if td.car_key[0] > 0:
-                self._upshift_cap_by_key[td.car_key] = 10
+                ck = td.car_key
+                self._upshift_cap_by_key[ck] = 10
+                self._upshift_cap_set_at.pop(ck, None)
             return
         if now >= self._pending_upshift_until:
             ck = td.car_key
             if ck[0] > 0:
                 self._upshift_cap_by_key[ck] = min(self._upshift_cap_by_key.get(ck, 10), td.gear)
+                if td.gear < Cfg.UPSHIFT_CAP_HARD_FROM_GEAR:
+                    self._upshift_cap_set_at[ck] = now
+                else:
+                    self._upshift_cap_set_at.pop(ck, None)
             self._pending_upshift_from = None
             self._pending_upshift_until = 0.0
+
+    def _maybe_retry_upshift_cap(self, td: Telemetry, now: float) -> None:
+        """Clear a soft low-gear upshift cap when the car is still demanding power."""
+        ck = td.car_key
+        if ck[0] <= 0:
+            return
+        cap = self._upshift_cap_by_key.get(ck, 10)
+        if cap >= 10 or td.gear < cap:
+            return
+        if td.gear >= Cfg.UPSHIFT_CAP_HARD_FROM_GEAR:
+            return
+        set_at = self._upshift_cap_set_at.get(ck)
+        if set_at is None or (now - set_at) < Cfg.UPSHIFT_CAP_RETRY_S:
+            return
+        if td.rpm_pct < 0.78 or td.throttle < 0.35 or td.brake > 0.08:
+            return
+        self._upshift_cap_by_key[ck] = 10
+        self._upshift_cap_set_at.pop(ck, None)
+
+    def _reverse_exit_allows_shifts(self, td: Telemetry) -> bool:
+        """Forward launch from 1st after R — don't hold the full exit lock."""
+        if td.gear < 1:
+            return False
+        if td.speed_kmh < Cfg.MIN_SPEED_KMH:
+            return False
+        if td.vel_z < -0.5:
+            return False
+        return td.rpm_pct >= 0.70 or td.throttle >= 0.50
 
     def _load_profiles(self, ck: tuple, td: Telemetry) -> None:
         """Restore learning data from ProfileStore for *ck*."""
@@ -595,10 +631,10 @@ class TCULogic:
         if is_reverse_now:
             self._tcu_state = "REVERSE"
             self._tcu_state_sub = "TCU passive"
-            self._reverse_lock_until = now + 2.0
+            self._reverse_lock_until = now + Cfg.REVERSE_EXIT_LOCK_S
             return
 
-        if now < self._reverse_lock_until:
+        if now < self._reverse_lock_until and not self._reverse_exit_allows_shifts(td):
             self._tcu_state = "REVERSE"
             self._tcu_state_sub = "exiting R..."
             return
@@ -686,6 +722,8 @@ class TCULogic:
             self._cornering_locked = True
             self._tcu_state = "CORNERING"
             self._tcu_state_sub = "upshift locked"
+
+        self._maybe_retry_upshift_cap(td, now)
 
         m = self.mode
         if m == Mode.COMFORT:

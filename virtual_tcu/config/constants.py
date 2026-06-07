@@ -12,6 +12,12 @@ class Cfg:
     LOW_GEAR_LOCK_MS = 800
     # Wait for the game to acknowledge an upshift before retrying (prevents E-key spam).
     UPSHIFT_PENDING_TIMEOUT_S = 1.2
+    # After a low-gear upshift is rejected, wait this long before clearing the soft cap
+    # and allowing another attempt (still at WOT / redline).
+    UPSHIFT_CAP_RETRY_S = 0.8
+    # At/above this gear, a rejected upshift keeps a hard cap (e.g. 6-speed cannot take 7th).
+    UPSHIFT_CAP_HARD_FROM_GEAR = 6
+    REVERSE_EXIT_LOCK_S = 2.0
     ANTI_STALL_RPM = 1100
     MIN_SPEED_KMH = 12.0
     OVER_REV_LIMIT = 1.02

@@ -49,6 +49,48 @@ def test_failed_upshift_caps_top_gear(make_logic, out, clock):
     assert tcu._upshift_cap_by_key[CAR_KEY] == 6
 
 
+def test_failed_low_gear_upshift_retries_at_redline(make_logic, out, clock):
+    tcu = make_logic("COMFORT")
+    td = make_telemetry(
+        gear=1,
+        current_rpm=7600,
+        engine_max_rpm=8000.0,
+        speed_ms=45.0 / 3.6,
+        vel_z=12.0,
+        accel_raw=255,
+        brake_raw=0,
+    )
+    for _ in range(250):
+        clock.now += 0.016
+        out.now = clock.now
+        tcu.process(td)
+    ups = [s for s in out.shifts if s[0] == "UP"]
+    assert len(ups) >= 2
+    assert len(ups) <= 6
+
+
+def test_reverse_exit_does_not_block_launch_upshift(make_logic, out, clock):
+    tcu = make_logic("COMFORT")
+    td_r = make_telemetry(gear=0, speed_ms=0, accel_raw=0, vel_z=0)
+    tcu.process(td_r)
+
+    td = make_telemetry(
+        gear=1,
+        current_rpm=7500,
+        engine_max_rpm=8000.0,
+        speed_ms=25.0 / 3.6,
+        vel_z=7.0,
+        accel_raw=255,
+        brake_raw=0,
+    )
+    for _ in range(80):
+        clock.now += 0.016
+        out.now = clock.now
+        tcu.process(td)
+    ups = [s for s in out.shifts if s[0] == "UP"]
+    assert len(ups) >= 1
+
+
 def test_ski_log_no_6_to_7_spam(clock, tmp_path):
     log_path = Path(__file__).resolve().parent.parent / "logs" / "滑雪越野赛事不换挡.gz"
     if not log_path.is_file():
