@@ -1,23 +1,23 @@
 export interface FeatureToggle {
   key: string
   i18nKey: string
+  /** i18n key under settings.hints.*/
+  hintKey: string
 }
 
+/** Core TCU features shown in the settings UI (niche items stay in tcu_config.json only). */
 export const FEATURE_TOGGLES: FeatureToggle[] = [
-  { key: 'feat_cornering_lock', i18nKey: 'corneringLock' },
-  { key: 'feat_launch_control', i18nKey: 'launchControl' },
-  { key: 'feat_brake_curve', i18nKey: 'brakeCurve' },
-  { key: 'feat_drivetrain_aware', i18nKey: 'drivetrainAware' },
-  { key: 'feat_shift_advisor', i18nKey: 'shiftAdvisor' },
-  { key: 'feat_reverse_hold', i18nKey: 'reverseHold' },
-  { key: 'feat_sound_beep', i18nKey: 'soundBeep' },
-  { key: 'feat_engine_brake', i18nKey: 'engineBrake' },
-  { key: 'feat_power_curve', i18nKey: 'powerCurve' },
-  { key: 'feat_turbo_compensate', i18nKey: 'turboCompensate' },
-  { key: 'feat_airtime_lock', i18nKey: 'airtimeLock' },
-  { key: 'feat_transient_lock', i18nKey: 'transientLock' },
-  { key: 'feat_drive_style', i18nKey: 'driveStyle' },
-  { key: 'feat_discord_rpc', i18nKey: 'discordRpc' },
+  { key: 'feat_cornering_lock', i18nKey: 'corneringLock', hintKey: 'corneringLock' },
+  { key: 'feat_launch_control', i18nKey: 'launchControl', hintKey: 'launchControl' },
+  { key: 'feat_brake_curve', i18nKey: 'brakeCurve', hintKey: 'brakeCurve' },
+  { key: 'feat_drivetrain_aware', i18nKey: 'drivetrainAware', hintKey: 'drivetrainAware' },
+  { key: 'feat_shift_advisor', i18nKey: 'shiftAdvisor', hintKey: 'shiftAdvisor' },
+  { key: 'feat_engine_brake', i18nKey: 'engineBrake', hintKey: 'engineBrake' },
+  { key: 'feat_power_curve', i18nKey: 'powerCurve', hintKey: 'powerCurve' },
+  { key: 'feat_turbo_compensate', i18nKey: 'turboCompensate', hintKey: 'turboCompensate' },
+  { key: 'feat_airtime_lock', i18nKey: 'airtimeLock', hintKey: 'airtimeLock' },
+  { key: 'feat_transient_lock', i18nKey: 'transientLock', hintKey: 'transientLock' },
+  { key: 'feat_drive_style', i18nKey: 'driveStyle', hintKey: 'driveStyle' },
 ]
 
 export interface SliderDef {
