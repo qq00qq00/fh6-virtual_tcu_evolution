@@ -1,5 +1,6 @@
 export { settingsContextKey } from './context'
 export type { SettingsContext } from './context'
+export { default as FeatureToggleList } from './FeatureToggleList.vue'
 export { default as SettingsAbout } from './SettingsAbout.vue'
 export { default as SettingsAdvanced } from './SettingsAdvanced.vue'
 export { default as SettingsConfig } from './SettingsConfig.vue'

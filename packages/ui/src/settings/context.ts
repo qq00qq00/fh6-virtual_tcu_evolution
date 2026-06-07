@@ -1,4 +1,4 @@
-import type { SliderDef } from '@virtual-tcu/shared/config/settings'
+import type { FeatureToggle, SliderDef } from '@virtual-tcu/shared/config/settings'
 import type { InjectionKey, Ref } from 'vue'
 
 export interface StatsRows {
@@ -73,7 +73,7 @@ export interface SettingsContext {
     openModal: (mode: string, title: string, text: string) => void
   }
   driveModes: Array<{ id: string; i18nKey: string }>
-  featureToggles: Array<{ key: string; i18nKey: string }>
+  featureToggles: FeatureToggle[]
   hotkeyFields: Array<{ key: string; i18nKey: string; placeholder: string }>
   shiftKeyFields: Array<{ key: string; i18nKey: string; placeholder: string }>
   outputModeOptions: ReadonlyArray<{ value: string; i18nKey: string }>

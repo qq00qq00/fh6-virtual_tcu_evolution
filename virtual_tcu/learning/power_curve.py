@@ -101,19 +101,33 @@ class PowerCurveDetector:
     FULL_CONF_SAMPLES = 80
     MIN_SPREAD = 0.06
     GOOD_SPREAD = 0.16
+    # Upshift timing needs samples near the real redline; mid-range-only fits
+    # extrapolate a peak too early (common on RWD before a limiter pull).
+    HIGH_RPM_COVERAGE = 0.78
+    STATIONARY_LEARN_SPEED_KMH = 8.0
 
     def __init__(self):
         self._fits: dict[tuple, _ParabolaFit] = {}
+        self._max_r: dict[tuple, float] = {}
+
+    def _gear_ok(self, td: Telemetry) -> bool:
+        if td.gear >= 2:
+            return True
+        # Brake+throttle revving in 1st is the fastest way to learn limiter/curve.
+        return td.gear == 1 and td.speed_kmh < self.STATIONARY_LEARN_SPEED_KMH
 
     def observe(self, td: Telemetry):
         ck = td.car_key
-        if ck[0] <= 0 or td.gear < 2:
+        if ck[0] <= 0 or not self._gear_ok(td):
             return
         if td.throttle < 0.45 or td.torque_nm <= 0 or td.is_shifting:
             return
         r = td.rpm_pct
         if r < 0.20 or r > 1.0:
             return
+        prev_max = self._max_r.get(ck, 0.0)
+        if r > prev_max:
+            self._max_r[ck] = r
         # Partial throttle and some slip still carry curve-shape info but
         # weigh less — the least-squares fit absorbs them as soft evidence.
         weight = 1.0
@@ -121,6 +135,8 @@ class PowerCurveDetector:
             weight *= 0.5
         if td.rear_slip > 0.5:
             weight *= 0.4
+        if r >= self.HIGH_RPM_COVERAGE and td.throttle >= 0.85:
+            weight *= 1.6
         self._fits.setdefault(ck, _ParabolaFit()).add(r, td.torque_nm, weight)
 
     def _peaks(self, car_key: tuple):
@@ -162,7 +178,15 @@ class PowerCurveDetector:
         s_conf = max(
             0.0, min(1.0, (fit.x_spread - self.MIN_SPREAD) / (self.GOOD_SPREAD - self.MIN_SPREAD))
         )
-        return pt, pp, n_conf * s_conf
+        max_r = self._max_r.get(car_key, 0.0)
+        span = self.HIGH_RPM_COVERAGE - 0.40
+        high_conf = max(0.0, min(1.0, (max_r - 0.40) / span)) if span > 0 else 0.0
+        conf = n_conf * s_conf * high_conf
+        # Mid-range-only parabolas often place the peak far below the real
+        # power band — ignore until we have high-RPM evidence.
+        if max_r < self.HIGH_RPM_COVERAGE and pp < 0.82:
+            return None, None, 0.0
+        return pt, pp, conf
 
     def peak_torque_rpm(self, car_key: tuple) -> float | None:
         return self._peaks(car_key)[0]
@@ -181,8 +205,13 @@ class PowerCurveDetector:
             return fallback
         model = max(0.65, min(0.97, pp + offset))
         # Blend: early low-confidence estimates lean on the fallback,
-        # mature ones trust the model fully.
-        return conf * model + (1.0 - conf) * fallback
+        # mature ones trust the model fully. Never upshift earlier than the
+        # configured fallback while high-RPM coverage is still missing.
+        blended = conf * model + (1.0 - conf) * fallback
+        max_r = self._max_r.get(td.car_key, 0.0)
+        if max_r < self.HIGH_RPM_COVERAGE:
+            return max(blended, fallback)
+        return blended
 
     def has_data(self, car_key: tuple) -> bool:
         return self._peaks(car_key)[1] is not None
@@ -190,10 +219,18 @@ class PowerCurveDetector:
     def dump(self, car_key: tuple) -> dict | None:
         """Serialise the parabola fit for *car_key*, or None if no data."""
         fit = self._fits.get(car_key)
-        return fit.to_dict() if fit is not None else None
+        if fit is None:
+            return None
+        data = fit.to_dict()
+        max_r = self._max_r.get(car_key)
+        if max_r is not None:
+            data["max_r"] = max_r
+        return data
 
     def load(self, car_key: tuple, data: dict):
         """Restore a parabola fit from a previously-saved dump."""
         if not isinstance(data, dict):
             return
         self._fits[car_key] = _ParabolaFit.from_dict(data)
+        if "max_r" in data:
+            self._max_r[car_key] = float(data["max_r"])

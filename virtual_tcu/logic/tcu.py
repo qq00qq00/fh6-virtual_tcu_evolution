@@ -172,6 +172,7 @@ class TCULogic:
         self._calibrator._ratios.pop(ck, None)
         self._calibrator._counts.pop(ck, None)
         self._power_curve._fits.pop(ck, None)
+        self._power_curve._max_r.pop(ck, None)
         self._rev_limiter._redline.pop(ck, None)
         self._rev_limiter._rpm_window.pop(ck, None)
         self._rev_limiter._peak_hold.pop(ck, None)
@@ -959,6 +960,11 @@ class TCULogic:
 
     def _wheelspin_upshift_now(self, td: Telemetry) -> bool:
         if not self._config.get("feat_drivetrain_aware"):
+            return False
+        if self._config.get("feat_power_curve") and self._power_curve.confidence(td.car_key) < 0.25:
+            # RWD wheelspin upshifts are a traction aid, not a shift-point
+            # signal — skip while the per-car curve is still cold.
+            self._slip_streak = 0
             return False
         if td.gear < 1 or td.gear > 3:
             self._slip_streak = 0

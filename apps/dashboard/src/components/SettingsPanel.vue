@@ -8,6 +8,7 @@
   } from '@/types/telemetry'
   import type { ConfigMap, SystemLog, TelemetryLog } from '@/types/ws'
   import { HUD_TEMPLATES } from '@virtual-tcu/shared/config/hud'
+  import FeatureToggleList from '@virtual-tcu/ui/settings/FeatureToggleList.vue'
   import UdpHubTargetsField from '@virtual-tcu/ui/settings/UdpHubTargetsField.vue'
   import {
     NButton,
@@ -227,20 +228,12 @@
             </div>
 
             <NCard :title="$t('settings.features')" size="small" :bordered="false">
-              <NFlex vertical :size="10">
-                <NFlex
-                  v-for="f in FEATURE_TOGGLES"
-                  :key="f.key"
-                  justify="space-between"
-                  align="center"
-                >
-                  <NText>{{ $t(`settings.${f.i18nKey}`) }}</NText>
-                  <NSwitch
-                    :value="configBool(f.key)"
-                    @update:value="emit('setConfig', f.key, $event)"
-                  />
-                </NFlex>
-              </NFlex>
+              <FeatureToggleList
+                :toggles="FEATURE_TOGGLES"
+                :config-bool="configBool"
+                :columns="1"
+                @set-config="(key, v) => emit('setConfig', key, v)"
+              />
             </NCard>
 
             <NCard
