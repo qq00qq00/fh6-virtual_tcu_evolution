@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Feature toggle tooltips** — shared `FeatureToggleList` component shows an info icon beside each switch; hover reveals a short EN / zh-CN explanation on Electron Settings and the Web dashboard.
+- **pytest** — `test_power_curve_cold_start.py` (mid-range-only samples must not cause early upshifts); `test_upshift_pending.py` extended for low-gear cap retry and reverse-exit launch upshifts.
+
+### Changed
+
+- **Power curve cold start** — track per-car high-RPM coverage; count 1st-gear stationary brake+throttle revving toward learning; up-weight WOT samples near the limiter; reject mid-range-only parabola peaks until ≥78% RPM has been seen; keep Race upshift at the configured `race_up_wot` fallback until then; persist `max_r` in saved power-curve profiles.
+- **RWD wheelspin upshift** — skip traction-save upshifts while per-car power-curve confidence is still low (<25%).
+- **Settings feature panel** — UI lists 11 core toggles only; Discord RPC, shift beep, and hold-Q reverse are hidden from the panel but remain available via `tcu_config.json`.
+
+### Fixed
+
+- **Rejected low-gear upshift** — soft top-gear cap (below 6th) clears after `UPSHIFT_CAP_RETRY_S` when still at WOT near redline, so the TCU retries instead of staying capped; 6th+ keeps a hard cap for impossible ratios.
+- **Launch after reverse** — exiting reverse no longer blocks a forward 1st-gear redline upshift during the reverse-exit lock window.
+
 ## [13.2.1] — 2026-06-06
 
 ### Added
