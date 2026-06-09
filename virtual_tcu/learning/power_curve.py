@@ -213,6 +213,69 @@ class PowerCurveDetector:
             return max(blended, fallback)
         return blended
 
+    def _torque_model(self, car_key: tuple):
+        """Return a callable ``r -> torque`` (rpm fraction 0..1, torque in the
+        same relative units the parabola was fitted on), or None when the fit
+        is missing, too cold, or not concave-down. The absolute scale cancels
+        in the crossover ratio, so only the *shape* needs to be right."""
+        fit = self._fits.get(car_key)
+        if fit is None or fit.n < self.MIN_SAMPLES:
+            return None
+        abc = fit.solve()
+        if abc is None:
+            return None
+        a, b, c = abc
+        if a >= -1e-6:  # not concave-down yet → no usable curve shape
+            return None
+
+        def torque(r: float) -> float:
+            r = max(0.0, min(1.0, r))
+            return a * r * r + b * r + c
+
+        return torque
+
+    def crossover_upshift_ok(
+        self,
+        td: Telemetry,
+        ratios: dict[int, float],
+        *,
+        conf_floor: float = 0.30,
+        hysteresis: float = 0.02,
+    ) -> bool | None:
+        """Tractive-force crossover test for an N -> N+1 upshift.
+
+        The max-acceleration shift point is where the wheel force the *next*
+        gear would make — at the rpm the engine drops to after the shift —
+        meets or beats the force the current gear is making now. Wheel force
+        is ``engine_torque * overall_reduction``; the learned rpm/kmh ratio is
+        proportional to that reduction, so ``F ~= torque(r) * ratio`` (the
+        unknown constants cancel in the comparison).
+
+        Returns True (shift now), False (hold) or **None** when the inputs are
+        too cold to decide — an unknown next-gear ratio (e.g. a brand-new car
+        that has never been in N+1) or a curve below ``conf_floor``. The caller
+        must fall back to the rpm-percent path on None; that fallback is what
+        lets an unlearned car still upshift out of 1st at all.
+        """
+        g = td.gear
+        r_cur = ratios.get(g)
+        r_up = ratios.get(g + 1)
+        if not r_cur or not r_up or r_up <= 0.0 or r_up >= r_cur:
+            return None
+        if self.confidence(td.car_key) < conf_floor:
+            return None
+        torque = self._torque_model(td.car_key)
+        if torque is None:
+            return None
+
+        r_now = td.rpm_pct
+        r_next = r_now * (r_up / r_cur)  # speed fixed → rpm scales with ratio
+        f_now = torque(r_now) * r_cur
+        f_next = torque(r_next) * r_up
+        if f_now <= 0.0:
+            return None
+        return f_next >= f_now * (1.0 + hysteresis)
+
     def has_data(self, car_key: tuple) -> bool:
         return self._peaks(car_key)[1] is not None
 

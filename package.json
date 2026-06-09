@@ -41,7 +41,12 @@
     "overrides": {
       "@electron-toolkit/utils>electron": "42.2.0",
       "vite": "^7.3.2"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller",
+      "esbuild"
+    ]
   },
   "lint-staged": {
     "*.{ts,vue,js,cjs,mts,cts}": [
