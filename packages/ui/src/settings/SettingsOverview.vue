@@ -8,6 +8,25 @@
   const ctx = inject(settingsContextKey)!
   const { t, store, driveModes, dashboardUrl, lanUrl, udpPort, openDashboard, toggleHud } = ctx
 
+  function crossoverState(): 'learning' | 'learned' | 'relearning' {
+    const tel = store.telemetry.value
+    if (tel?.crossover_relearning) return 'relearning'
+    if (tel?.calibrated && tel?.power_curve_learned) return 'learned'
+    return 'learning'
+  }
+  function crossoverTagType(): 'success' | 'warning' | 'info' {
+    const s = crossoverState()
+    return s === 'relearning' ? 'info' : s === 'learned' ? 'success' : 'warning'
+  }
+  function crossoverLabel(): string {
+    const s = crossoverState()
+    return s === 'relearning'
+      ? t('calibration.crossoverRelearning')
+      : s === 'learned'
+        ? t('calibration.crossoverLearned')
+        : t('calibration.crossoverLearning')
+  }
+
   function modeColor(id: string) {
     return (
       (
@@ -151,6 +170,13 @@
           <NText depth="3" style="font-size: 12px">
             {{ t('calibration.hint') }}
           </NText>
+        </NFlex>
+        <NDivider style="margin: 12px 0" />
+        <NFlex align="center" justify="space-between" :size="12">
+          <NText style="font-size: 12px">{{ t('calibration.crossover') }}</NText>
+          <NTag :type="crossoverTagType()" :bordered="false" round size="small">
+            {{ crossoverLabel() }}
+          </NTag>
         </NFlex>
       </NCard>
     </NGridItem>

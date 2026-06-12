@@ -75,6 +75,7 @@ DEFAULTS = {
     "log_output_format": "bin.gz",
     "hotkey_cycle_mode": "f9",
     "hotkey_snapshot": "f8",
+    "hotkey_crossover_relearn": "f7",
     "vjoy_direct_shift": True,
     "vjoy_use_clutch": False,
     "vjoy_shift_key_up": "B13",

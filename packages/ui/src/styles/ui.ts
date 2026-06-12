@@ -14,6 +14,7 @@ export const actionBtnDanger = 'ui-action-btn-danger'
 
 export const badgeCalibrated = 'ui-badge-calibrated'
 export const badgeLearning = 'ui-badge-learning'
+export const badgeRelearn = 'ui-badge-relearn'
 
 export const tabBase = 'ui-tab'
 export const tabActive = 'ui-tab-active'

@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.3.0] - 2026-06-12
+
+### Added
+
+- **Crossover upshift relearn** — new hotkey (default `F7`, editable under Advanced → Hotkeys, restart TCU to apply) wipes the current car's learned crossover-upshift inputs (gear ratios + power curve, in memory and in the persisted profile) and relearns them from live telemetry, keeping the engine rpm envelope. Mirrors the T-GT II `reset-current` behaviour.
+- **Crossover learning status indicator** — shown in the in-game HUD chrome bar (all three templates: classic / racing / minimal) and in the gear-calibration card on the Web dashboard and Electron overview. Yellow `LEARNING` until both gear ratios and the power curve are learned, green `LEARNED` once ready, blue `RELEARNING` for 5 s after the relearn hotkey. Driven by the telemetry snapshot so HUD and dashboard stay in sync. Full EN / zh-CN localisation.
+
 ## [13.2.2] - 2026-06-07
 
 ### Added

@@ -78,6 +78,7 @@ export const SETTING_SLIDERS: SliderDef[] = [
 export const HOTKEY_FIELDS = [
   { key: 'hotkey_cycle_mode', i18nKey: 'cycleMode', placeholder: 'f9' },
   { key: 'hotkey_snapshot', i18nKey: 'triggerSnapshot', placeholder: 'f8' },
+  { key: 'hotkey_crossover_relearn', i18nKey: 'crossoverRelearn', placeholder: 'f7' },
 ] as const
 
 export const SHIFT_KEY_FIELDS = [

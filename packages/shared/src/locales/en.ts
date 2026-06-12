@@ -94,6 +94,10 @@ export default {
     calibrated: 'CALIBRATED',
     learning: 'LEARNING…',
     hint: 'Auto-learns gear ratios from telemetry. Improves shift accuracy.',
+    crossover: 'Crossover upshift',
+    crossoverLearning: 'Learning',
+    crossoverLearned: 'Learned',
+    crossoverRelearning: 'Relearning',
   },
   driveStyle: {
     title: 'Drive Style',
@@ -364,6 +368,7 @@ export default {
     saveAndRestart: 'Save & Restart Backend',
     cycleMode: 'Cycle mode',
     triggerSnapshot: 'Manual Snapshot',
+    crossoverRelearn: 'Crossover upshift relearn',
     fullTuning: 'Drive modes — full tuning',
   },
   modal: {

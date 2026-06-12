@@ -144,6 +144,7 @@ export function useHudApp() {
     shiftAdvice: view.shiftAdvice.value,
     showShiftAdvisor: view.showShiftAdvisor.value,
     showShiftBanner: view.showShiftBanner.value,
+    crossoverLearnState: view.crossoverLearnState.value,
   }))
 
   useHudWindowSync({

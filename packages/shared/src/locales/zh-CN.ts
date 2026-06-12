@@ -92,6 +92,10 @@ export default {
     calibrated: '已标定',
     learning: '学习中…',
     hint: '根据遥测自动学习各档齿比，提升换挡精度。',
+    crossover: '牵引力交叉升档',
+    crossoverLearning: '学习中',
+    crossoverLearned: '已学会',
+    crossoverRelearning: '开始重学',
   },
   driveStyle: {
     title: '驾驶风格',
@@ -358,6 +362,7 @@ export default {
     saveAndRestart: '保存并重启后端',
     cycleMode: '切换模式',
     triggerSnapshot: '手动快照',
+    crossoverRelearn: '牵引力交叉升档重学',
     fullTuning: '驾驶模式 — 完整调校',
   },
   modal: {

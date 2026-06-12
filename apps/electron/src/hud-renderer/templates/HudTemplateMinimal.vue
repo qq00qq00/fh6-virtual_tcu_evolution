@@ -22,6 +22,7 @@
     brake: number
     shiftAdvice: ShiftAdvice
     showShiftAdvisor: boolean
+    crossoverLearnState: string
   }>()
 
   const emit = defineEmits<{
@@ -63,6 +64,7 @@
         :mode-color="modeColor"
         :tcu-state="tcuState"
         :click-through="clickThrough"
+        :learn-state="crossoverLearnState"
         @toggle-click-through="emit('toggleClickThrough', $event)"
         @close="emit('close')"
       />

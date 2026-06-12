@@ -70,6 +70,12 @@ export function useHudView(
     return { color: '#ffffff' }
   })
 
+  const crossoverLearnState = computed<'learning' | 'learned' | 'relearning'>(() => {
+    if (telemetry.value.crossover_relearning) return 'relearning'
+    if (telemetry.value.calibrated && telemetry.value.power_curve_learned) return 'learned'
+    return 'learning'
+  })
+
   return {
     gearLabel,
     speed,
@@ -85,6 +91,7 @@ export function useHudView(
     rpmBarColor,
     gearColor,
     gearStyle,
+    crossoverLearnState,
   }
 }
 

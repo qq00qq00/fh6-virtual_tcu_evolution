@@ -1,0 +1,647 @@
+From 7339f82a5818c096e01ffe9575b7d7ba4f668897 Mon Sep 17 00:00:00 2001
+From: dev <dev@local>
+Date: Fri, 12 Jun 2026 09:49:16 +0000
+Subject: [PATCH] feat: traction crossover-upshift relearn hotkey + learning
+ status indicator
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add an F7 (editable) hotkey that relearns the current car's crossover-upshift
+model — wipes its gear ratios + power curve in memory and in the persisted
+profile and rebuilds from telemetry, keeping the rev-limiter envelope, mirroring
+T-GT II reset-current. Surface a learning-status indicator in the HUD chrome bar
+(all 3 templates) and the gear-calibration card on the web dashboard and Electron
+overview: LEARNING (yellow) until gear ratios + power curve are both learned,
+LEARNED (green), and RELEARNING (blue) for 5s after the hotkey. Status flows
+through the telemetry snapshot so HUD and dashboard stay consistent. EN + zh-CN.
+
+Bump 13.3.0.
+---
+ CHANGELOG.md                                  |  7 +++
+ apps/dashboard/package.json                   |  2 +-
+ apps/electron/package.json                    |  2 +-
+ apps/electron/src/hud-renderer/HudApp.ts      |  1 +
+ apps/electron/src/hud-renderer/HudChrome.vue  | 47 ++++++++++++++++++-
+ apps/electron/src/hud-renderer/hud-view.ts    |  7 +++
+ .../templates/HudTemplateClassic.vue          |  2 +
+ .../templates/HudTemplateMinimal.vue          |  2 +
+ .../templates/HudTemplateRacing.vue           |  2 +
+ package.json                                  |  2 +-
+ packages/shared/package.json                  |  2 +-
+ packages/shared/src/config/settings.ts        |  1 +
+ packages/shared/src/locales/en.ts             |  5 ++
+ packages/shared/src/locales/zh-CN.ts          |  5 ++
+ packages/shared/src/types/telemetry.ts        |  1 +
+ packages/ui/package.json                      |  2 +-
+ packages/ui/src/layout/ModeSidebar.vue        | 32 ++++++++++++-
+ packages/ui/src/settings/SettingsOverview.vue | 26 ++++++++++
+ packages/ui/src/styles/components.css         |  4 ++
+ packages/ui/src/styles/ui.ts                  |  1 +
+ pyproject.toml                                |  2 +-
+ virtual_tcu/__init__.py                       |  2 +-
+ virtual_tcu/app.py                            |  5 ++
+ virtual_tcu/config/constants.py               |  1 +
+ virtual_tcu/logic/tcu.py                      | 44 +++++++++++++++++
+ 25 files changed, 198 insertions(+), 9 deletions(-)
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index bdbb059..a06fde5 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,12 @@
+ # Changelog
+ 
++## [13.3.0] - 2026-06-12
++
++### Added
++
++- **Crossover upshift relearn** — new hotkey (default `F7`, editable under Advanced → Hotkeys, restart TCU to apply) wipes the current car's learned crossover-upshift inputs (gear ratios + power curve, in memory and in the persisted profile) and relearns them from live telemetry, keeping the engine rpm envelope. Mirrors the T-GT II `reset-current` behaviour.
++- **Crossover learning status indicator** — shown in the in-game HUD chrome bar (all three templates: classic / racing / minimal) and in the gear-calibration card on the Web dashboard and Electron overview. Yellow `LEARNING` until both gear ratios and the power curve are learned, green `LEARNED` once ready, blue `RELEARNING` for 5 s after the relearn hotkey. Driven by the telemetry snapshot so HUD and dashboard stay in sync. Full EN / zh-CN localisation.
++
+ ## [13.2.2] - 2026-06-07
+ 
+ ### Added
+diff --git a/apps/dashboard/package.json b/apps/dashboard/package.json
+index 527356e..a8a9bc4 100644
+--- a/apps/dashboard/package.json
++++ b/apps/dashboard/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "virtual-tcu-web-ui",
+   "type": "module",
+-  "version": "13.2.2",
++  "version": "13.3.0",
+   "private": true,
+   "scripts": {
+     "dev": "vite",
+diff --git a/apps/electron/package.json b/apps/electron/package.json
+index 105f3d8..e355914 100644
+--- a/apps/electron/package.json
++++ b/apps/electron/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "virtual-tcu",
+   "productName": "VirtualTCU",
+-  "version": "13.2.2",
++  "version": "13.3.0",
+   "private": true,
+   "description": "External adaptive transmission controller for Forza Horizon 6 — Electron shell",
+   "author": "Virtual TCU",
+diff --git a/apps/electron/src/hud-renderer/HudApp.ts b/apps/electron/src/hud-renderer/HudApp.ts
+index 438dd3b..b5af44a 100644
+--- a/apps/electron/src/hud-renderer/HudApp.ts
++++ b/apps/electron/src/hud-renderer/HudApp.ts
+@@ -144,6 +144,7 @@ export function useHudApp() {
+     shiftAdvice: view.shiftAdvice.value,
+     showShiftAdvisor: view.showShiftAdvisor.value,
+     showShiftBanner: view.showShiftBanner.value,
++    crossoverLearnState: view.crossoverLearnState.value,
+   }))
+ 
+   useHudWindowSync({
+diff --git a/apps/electron/src/hud-renderer/HudChrome.vue b/apps/electron/src/hud-renderer/HudChrome.vue
+index 13a494c..90506bb 100644
+--- a/apps/electron/src/hud-renderer/HudChrome.vue
++++ b/apps/electron/src/hud-renderer/HudChrome.vue
+@@ -11,8 +11,9 @@
+       clickThrough: boolean
+       compact?: boolean
+       footer?: boolean
++      learnState?: string
+     }>(),
+-    { compact: false, footer: false },
++    { compact: false, footer: false, learnState: 'learning' },
+   )
+ 
+   const emit = defineEmits<{
+@@ -22,6 +23,15 @@
+ 
+   const { t } = useI18n()
+   const modeLabel = computed(() => t(hudModeI18nKey(props.mode)))
++
++  const learnLabel = computed(() => {
++    const keys: Record<string, string> = {
++      learning: 'calibration.crossoverLearning',
++      learned: 'calibration.crossoverLearned',
++      relearning: 'calibration.crossoverRelearning',
++    }
++    return t(keys[props.learnState] ?? keys.learning)
++  })
+ </script>
+ 
+ <template>
+@@ -40,6 +50,10 @@
+       </template>
+     </div>
+ 
++    <span class="learn-pill" :class="learnState" :title="t('calibration.crossover')">{{
++      learnLabel
++    }}</span>
++
+     <div class="actions interactive">
+       <button
+         type="button"
+@@ -109,6 +123,7 @@
+     align-items: center;
+     gap: 6px;
+     min-width: 0;
++    flex: 1;
+   }
+ 
+   .mode-dot {
+@@ -143,6 +158,36 @@
+     color: #c4b5fd;
+   }
+ 
++  .learn-pill {
++    flex-shrink: 0;
++    font-size: 9px;
++    font-weight: 600;
++    letter-spacing: 0.04em;
++    line-height: 1;
++    padding: 2px 7px;
++    border-radius: 5px;
++    border: 1px solid transparent;
++    white-space: nowrap;
++  }
++
++  .learn-pill.learning {
++    color: #fbbf24;
++    background: rgba(245, 158, 11, 0.14);
++    border-color: rgba(245, 158, 11, 0.4);
++  }
++
++  .learn-pill.learned {
++    color: #4ade80;
++    background: rgba(34, 197, 94, 0.14);
++    border-color: rgba(34, 197, 94, 0.4);
++  }
++
++  .learn-pill.relearning {
++    color: #60a5fa;
++    background: rgba(59, 130, 246, 0.18);
++    border-color: rgba(59, 130, 246, 0.5);
++  }
++
+   .actions {
+     display: flex;
+     gap: 3px;
+diff --git a/apps/electron/src/hud-renderer/hud-view.ts b/apps/electron/src/hud-renderer/hud-view.ts
+index c87088e..9b5e04d 100644
+--- a/apps/electron/src/hud-renderer/hud-view.ts
++++ b/apps/electron/src/hud-renderer/hud-view.ts
+@@ -70,6 +70,12 @@ export function useHudView(
+     return { color: '#ffffff' }
+   })
+ 
++  const crossoverLearnState = computed<'learning' | 'learned' | 'relearning'>(() => {
++    if (telemetry.value.crossover_relearning) return 'relearning'
++    if (telemetry.value.calibrated && telemetry.value.power_curve_learned) return 'learned'
++    return 'learning'
++  })
++
+   return {
+     gearLabel,
+     speed,
+@@ -85,6 +91,7 @@ export function useHudView(
+     rpmBarColor,
+     gearColor,
+     gearStyle,
++    crossoverLearnState,
+   }
+ }
+ 
+diff --git a/apps/electron/src/hud-renderer/templates/HudTemplateClassic.vue b/apps/electron/src/hud-renderer/templates/HudTemplateClassic.vue
+index 35a5500..8978779 100644
+--- a/apps/electron/src/hud-renderer/templates/HudTemplateClassic.vue
++++ b/apps/electron/src/hud-renderer/templates/HudTemplateClassic.vue
+@@ -22,6 +22,7 @@
+     brake: number
+     shiftAdvice: ShiftAdvice
+     showShiftAdvisor: boolean
++    crossoverLearnState: string
+   }>()
+ 
+   const emit = defineEmits<{
+@@ -37,6 +38,7 @@
+       :mode-color="modeColor"
+       :tcu-state="tcuState"
+       :click-through="clickThrough"
++      :learn-state="crossoverLearnState"
+       @toggle-click-through="emit('toggleClickThrough', $event)"
+       @close="emit('close')"
+     />
+diff --git a/apps/electron/src/hud-renderer/templates/HudTemplateMinimal.vue b/apps/electron/src/hud-renderer/templates/HudTemplateMinimal.vue
+index 92093c5..a617ab3 100644
+--- a/apps/electron/src/hud-renderer/templates/HudTemplateMinimal.vue
++++ b/apps/electron/src/hud-renderer/templates/HudTemplateMinimal.vue
+@@ -22,6 +22,7 @@
+     brake: number
+     shiftAdvice: ShiftAdvice
+     showShiftAdvisor: boolean
++    crossoverLearnState: string
+   }>()
+ 
+   const emit = defineEmits<{
+@@ -63,6 +64,7 @@
+         :mode-color="modeColor"
+         :tcu-state="tcuState"
+         :click-through="clickThrough"
++        :learn-state="crossoverLearnState"
+         @toggle-click-through="emit('toggleClickThrough', $event)"
+         @close="emit('close')"
+       />
+diff --git a/apps/electron/src/hud-renderer/templates/HudTemplateRacing.vue b/apps/electron/src/hud-renderer/templates/HudTemplateRacing.vue
+index f9c4093..77e8793 100644
+--- a/apps/electron/src/hud-renderer/templates/HudTemplateRacing.vue
++++ b/apps/electron/src/hud-renderer/templates/HudTemplateRacing.vue
+@@ -23,6 +23,7 @@
+     brake: number
+     shiftAdvice: ShiftAdvice
+     showShiftAdvisor: boolean
++    crossoverLearnState: string
+   }>()
+ 
+   const emit = defineEmits<{
+@@ -38,6 +39,7 @@
+       :mode-color="modeColor"
+       :tcu-state="tcuState"
+       :click-through="clickThrough"
++      :learn-state="crossoverLearnState"
+       @toggle-click-through="emit('toggleClickThrough', $event)"
+       @close="emit('close')"
+     />
+diff --git a/package.json b/package.json
+index 5daf99b..638a935 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "virtual-tcu-monorepo",
+   "type": "module",
+-  "version": "13.2.2",
++  "version": "13.3.0",
+   "private": true,
+   "packageManager": "pnpm@10.33.0",
+   "engines": {
+diff --git a/packages/shared/package.json b/packages/shared/package.json
+index 3b59ed1..ad3b9cf 100644
+--- a/packages/shared/package.json
++++ b/packages/shared/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "@virtual-tcu/shared",
+   "type": "module",
+-  "version": "13.2.2",
++  "version": "13.3.0",
+   "private": true,
+   "exports": {
+     "./api/*": "./src/api/*",
+diff --git a/packages/shared/src/config/settings.ts b/packages/shared/src/config/settings.ts
+index 56162c8..81b3890 100644
+--- a/packages/shared/src/config/settings.ts
++++ b/packages/shared/src/config/settings.ts
+@@ -78,6 +78,7 @@ export const SETTING_SLIDERS: SliderDef[] = [
+ export const HOTKEY_FIELDS = [
+   { key: 'hotkey_cycle_mode', i18nKey: 'cycleMode', placeholder: 'f9' },
+   { key: 'hotkey_snapshot', i18nKey: 'triggerSnapshot', placeholder: 'f8' },
++  { key: 'hotkey_crossover_relearn', i18nKey: 'crossoverRelearn', placeholder: 'f7' },
+ ] as const
+ 
+ export const SHIFT_KEY_FIELDS = [
+diff --git a/packages/shared/src/locales/en.ts b/packages/shared/src/locales/en.ts
+index 56c49b0..f271ad7 100644
+--- a/packages/shared/src/locales/en.ts
++++ b/packages/shared/src/locales/en.ts
+@@ -94,6 +94,10 @@ export default {
+     calibrated: 'CALIBRATED',
+     learning: 'LEARNING…',
+     hint: 'Auto-learns gear ratios from telemetry. Improves shift accuracy.',
++    crossover: 'Crossover upshift',
++    crossoverLearning: 'Learning',
++    crossoverLearned: 'Learned',
++    crossoverRelearning: 'Relearning',
+   },
+   driveStyle: {
+     title: 'Drive Style',
+@@ -364,6 +368,7 @@ export default {
+     saveAndRestart: 'Save & Restart Backend',
+     cycleMode: 'Cycle mode',
+     triggerSnapshot: 'Manual Snapshot',
++    crossoverRelearn: 'Crossover upshift relearn',
+     fullTuning: 'Drive modes — full tuning',
+   },
+   modal: {
+diff --git a/packages/shared/src/locales/zh-CN.ts b/packages/shared/src/locales/zh-CN.ts
+index 105dc8d..842b023 100644
+--- a/packages/shared/src/locales/zh-CN.ts
++++ b/packages/shared/src/locales/zh-CN.ts
+@@ -92,6 +92,10 @@ export default {
+     calibrated: '已标定',
+     learning: '学习中…',
+     hint: '根据遥测自动学习各档齿比，提升换挡精度。',
++    crossover: '牵引力交叉升档',
++    crossoverLearning: '学习中',
++    crossoverLearned: '已学会',
++    crossoverRelearning: '开始重学',
+   },
+   driveStyle: {
+     title: '驾驶风格',
+@@ -358,6 +362,7 @@ export default {
+     saveAndRestart: '保存并重启后端',
+     cycleMode: '切换模式',
+     triggerSnapshot: '手动快照',
++    crossoverRelearn: '牵引力交叉升档重学',
+     fullTuning: '驾驶模式 — 完整调校',
+   },
+   modal: {
+diff --git a/packages/shared/src/types/telemetry.ts b/packages/shared/src/types/telemetry.ts
+index eacf45a..5d53be7 100644
+--- a/packages/shared/src/types/telemetry.ts
++++ b/packages/shared/src/types/telemetry.ts
+@@ -73,4 +73,5 @@ export interface TelemetrySnapshot {
+   watchdog_stuck?: boolean
+   log_status?: LogStatus
+   power_curve_learned?: boolean
++  crossover_relearning?: boolean
+ }
+diff --git a/packages/ui/package.json b/packages/ui/package.json
+index 829b9f6..c4d4c68 100644
+--- a/packages/ui/package.json
++++ b/packages/ui/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "@virtual-tcu/ui",
+   "type": "module",
+-  "version": "13.2.2",
++  "version": "13.3.0",
+   "private": true,
+   "exports": {
+     "./theme": "./src/theme.ts",
+diff --git a/packages/ui/src/layout/ModeSidebar.vue b/packages/ui/src/layout/ModeSidebar.vue
+index c83382d..66b7dd0 100644
+--- a/packages/ui/src/layout/ModeSidebar.vue
++++ b/packages/ui/src/layout/ModeSidebar.vue
+@@ -3,7 +3,14 @@
+   import { DRIVE_MODES } from '@virtual-tcu/shared/config/modes'
+   import { modeBtnClass, REGIME_PILL } from '@virtual-tcu/shared/utils/mode-colors'
+   import { toRefs } from 'vue'
+-  import { badgeCalibrated, badgeLearning, cardSm, col, sectionTitle } from '../styles/ui'
++  import {
++    badgeCalibrated,
++    badgeLearning,
++    badgeRelearn,
++    cardSm,
++    col,
++    sectionTitle,
++  } from '../styles/ui'
+   import { useModeSidebar } from './mode-sidebar'
+ 
+   const props = withDefaults(
+@@ -37,6 +44,25 @@
+   } = useModeSidebar(telemetry)
+ 
+   const isCalibrated = () => !!telemetry.value?.calibrated
++
++  const crossoverState = (): 'learning' | 'learned' | 'relearning' => {
++    const t = telemetry.value
++    if (t?.crossover_relearning) return 'relearning'
++    if (t?.calibrated && t?.power_curve_learned) return 'learned'
++    return 'learning'
++  }
++  const crossoverBadge = () => {
++    const s = crossoverState()
++    return s === 'relearning' ? badgeRelearn : s === 'learned' ? badgeCalibrated : badgeLearning
++  }
++  const crossoverLabel = () => {
++    const s = crossoverState()
++    return s === 'relearning'
++      ? 'calibration.crossoverRelearning'
++      : s === 'learned'
++        ? 'calibration.crossoverLearned'
++        : 'calibration.crossoverLearning'
++  }
+ </script>
+ 
+ <template>
+@@ -93,6 +119,10 @@
+       <div class="text-tcu-txt-dim mt-2 text-[11px] leading-snug">
+         {{ $t('calibration.hint') }}
+       </div>
++      <div class="border-tcu-border mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5">
++        <span class="text-tcu-txt-muted text-[11px]">{{ $t('calibration.crossover') }}</span>
++        <span :class="crossoverBadge()">{{ $t(crossoverLabel()) }}</span>
++      </div>
+     </div>
+ 
+     <h3 class="mt-6" :class="[sectionTitle]">
+diff --git a/packages/ui/src/settings/SettingsOverview.vue b/packages/ui/src/settings/SettingsOverview.vue
+index 2db9271..ebd5457 100644
+--- a/packages/ui/src/settings/SettingsOverview.vue
++++ b/packages/ui/src/settings/SettingsOverview.vue
+@@ -8,6 +8,25 @@
+   const ctx = inject(settingsContextKey)!
+   const { t, store, driveModes, dashboardUrl, lanUrl, udpPort, openDashboard, toggleHud } = ctx
+ 
++  function crossoverState(): 'learning' | 'learned' | 'relearning' {
++    const tel = store.telemetry.value
++    if (tel?.crossover_relearning) return 'relearning'
++    if (tel?.calibrated && tel?.power_curve_learned) return 'learned'
++    return 'learning'
++  }
++  function crossoverTagType(): 'success' | 'warning' | 'info' {
++    const s = crossoverState()
++    return s === 'relearning' ? 'info' : s === 'learned' ? 'success' : 'warning'
++  }
++  function crossoverLabel(): string {
++    const s = crossoverState()
++    return s === 'relearning'
++      ? t('calibration.crossoverRelearning')
++      : s === 'learned'
++        ? t('calibration.crossoverLearned')
++        : t('calibration.crossoverLearning')
++  }
++
+   function modeColor(id: string) {
+     return (
+       (
+@@ -152,6 +171,13 @@
+             {{ t('calibration.hint') }}
+           </NText>
+         </NFlex>
++        <NDivider style="margin: 12px 0" />
++        <NFlex align="center" justify="space-between" :size="12">
++          <NText style="font-size: 12px">{{ t('calibration.crossover') }}</NText>
++          <NTag :type="crossoverTagType()" :bordered="false" round size="small">
++            {{ crossoverLabel() }}
++          </NTag>
++        </NFlex>
+       </NCard>
+     </NGridItem>
+   </NGrid>
+diff --git a/packages/ui/src/styles/components.css b/packages/ui/src/styles/components.css
+index 97561f1..9ca5d67 100644
+--- a/packages/ui/src/styles/components.css
++++ b/packages/ui/src/styles/components.css
+@@ -55,6 +55,10 @@
+     @apply bg-warn/10 border-warn/30 text-warn inline-block rounded-sm border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase;
+   }
+ 
++  .ui-badge-relearn {
++    @apply bg-accent-2/10 border-accent-2/40 text-accent-2 inline-block rounded-sm border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase;
++  }
++
+   .ui-badge-danger {
+     @apply bg-danger/10 border-danger/50 text-danger inline-block rounded-sm border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase;
+   }
+diff --git a/packages/ui/src/styles/ui.ts b/packages/ui/src/styles/ui.ts
+index 615a5f6..8654bc7 100644
+--- a/packages/ui/src/styles/ui.ts
++++ b/packages/ui/src/styles/ui.ts
+@@ -14,6 +14,7 @@ export const actionBtnDanger = 'ui-action-btn-danger'
+ 
+ export const badgeCalibrated = 'ui-badge-calibrated'
+ export const badgeLearning = 'ui-badge-learning'
++export const badgeRelearn = 'ui-badge-relearn'
+ 
+ export const tabBase = 'ui-tab'
+ export const tabActive = 'ui-tab-active'
+diff --git a/pyproject.toml b/pyproject.toml
+index 4dbc40d..b9e5e33 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,6 +1,6 @@
+ [project]
+ name = "virtual-tcu"
+-version = "13.2.2"
++version = "13.3.0"
+ requires-python = ">=3.12"
+ dependencies = [
+     "keyboard>=0.13.5",
+diff --git a/virtual_tcu/__init__.py b/virtual_tcu/__init__.py
+index 6fb61ee..04b867f 100644
+--- a/virtual_tcu/__init__.py
++++ b/virtual_tcu/__init__.py
+@@ -1,6 +1,6 @@
+ """Virtual TCU — external adaptive transmission controller for Forza Horizon 6."""
+ 
+-__version__ = "13.2.2"
++__version__ = "13.3.0"
+ 
+ __all__ = ["__version__", "main"]
+ 
+diff --git a/virtual_tcu/app.py b/virtual_tcu/app.py
+index 0a9dd9e..ee73986 100644
+--- a/virtual_tcu/app.py
++++ b/virtual_tcu/app.py
+@@ -104,6 +104,11 @@ def setup_hotkeys(tcu: TCULogic, config: ConfigStore, logger: TelemetryLogger):
+             "snapshot_dump",
+             lambda: tcu.trigger_fusion_snapshot("manual_dump"),
+         ),
++        (
++            config.get("hotkey_crossover_relearn", "f7"),
++            "crossover_relearn",
++            lambda: tcu.reset_crossover_learning(),
++        ),
+     ]
+ 
+     for key, name, fn in bindings:
+diff --git a/virtual_tcu/config/constants.py b/virtual_tcu/config/constants.py
+index 7178173..c041535 100644
+--- a/virtual_tcu/config/constants.py
++++ b/virtual_tcu/config/constants.py
+@@ -75,6 +75,7 @@ DEFAULTS = {
+     "log_output_format": "bin.gz",
+     "hotkey_cycle_mode": "f9",
+     "hotkey_snapshot": "f8",
++    "hotkey_crossover_relearn": "f7",
+     "vjoy_direct_shift": True,
+     "vjoy_use_clutch": False,
+     "vjoy_shift_key_up": "B13",
+diff --git a/virtual_tcu/logic/tcu.py b/virtual_tcu/logic/tcu.py
+index a075f89..63be5bc 100644
+--- a/virtual_tcu/logic/tcu.py
++++ b/virtual_tcu/logic/tcu.py
+@@ -34,6 +34,11 @@ from virtual_tcu.telemetry.fusion_logger import FusionSnapshotLogger
+ from virtual_tcu.telemetry.logger import TelemetryLogger
+ from virtual_tcu.telemetry.model import Telemetry
+ 
++# How long the HUD/Dashboard show the blue "relearning" status after the
++# crossover-upshift relearn hotkey is pressed, before falling back to the
++# live learned/learning state.
++CROSSOVER_RELEARN_FLASH_S = 5.0
++
+ 
+ class TCULogic:
+     def __init__(
+@@ -88,6 +93,9 @@ class TCULogic:
+         self._pending_upshift_until = 0.0
+         self._upshift_cap_by_key: dict[tuple, int] = {}
+         self._upshift_cap_set_at: dict[tuple, float] = {}
++        # monotonic deadline until which the crossover-upshift status reads as
++        # "relearning" (set by the relearn hotkey); 0 = not relearning.
++        self._crossover_relearn_until = 0.0
+ 
+         self._reverse_lock_until = 0.0
+         self._current_car_key: tuple | None = None
+@@ -180,6 +188,40 @@ class TCULogic:
+         self._upshift_cap_by_key.pop(ck, None)
+         self._upshift_cap_set_at.pop(ck, None)
+ 
++    def reset_crossover_learning(self) -> bool:
++        """Relearn the traction crossover-upshift model for the current car.
++
++        Mirrors the T-GT II ``reset-current`` behaviour: the crossover upshift
++        has no learned state of its own — it rides on the per-car gear ratios
++        and power curve — so "relearning" means wiping those two inputs (in
++        memory and in the persisted profile) and letting them rebuild from live
++        telemetry. The engine rpm envelope (rev limiter / redline) is kept, as
++        T-GT II keeps maxRpm/idleRpm. Arms the 5 s "relearning" status flash on
++        the HUD and Dashboard. Returns True if a current car was reset.
++        """
++        with self._data_lock:
++            ck = self._current_car_key
++            if ck is None or ck[0] <= 0:
++                return False
++            # In-memory: drop the crossover inputs and the caps derived from them.
++            self._calibrator._ratios.pop(ck, None)
++            self._calibrator._counts.pop(ck, None)
++            self._power_curve._fits.pop(ck, None)
++            self._power_curve._max_r.pop(ck, None)
++            self._profile_baseline_gear1.pop(ck, None)
++            self._upshift_cap_by_key.pop(ck, None)
++            self._upshift_cap_set_at.pop(ck, None)
++            # Persisted: strip the same two blocks so they don't reload; keep the
++            # rest of the profile (rev limiter envelope, metadata).
++            profile = self._profiles.get(ck)
++            if isinstance(profile, dict):
++                for stale in ("gear_ratios", "gear_counts", "power_curve"):
++                    profile.pop(stale, None)
++                self._profiles.set(ck, profile)
++            self._crossover_relearn_until = time.monotonic() + CROSSOVER_RELEARN_FLASH_S
++            print(f"[Crossover] relearn {storage_key(ck)}: cleared gear ratios + power curve")
++            return True
++
+     def _resolve_pending_upshift(self, td: Telemetry, now: float) -> None:
+         """Clear or cap upshift targets once the game confirms or rejects a shift."""
+         if self._pending_upshift_from is None:
+@@ -419,6 +461,7 @@ class TCULogic:
+                     "calibrated": False,
+                     "log_status": self._logger.status,
+                     "power_curve_learned": False,
++                    "crossover_relearning": False,
+                     "shift_history": [],
+                     "session_stats": self._session_stats.snapshot(),
+                     "watchdog_stuck": self._watchdog.check(),
+@@ -459,6 +502,7 @@ class TCULogic:
+                 "peak_g": self._peak_g,
+                 "calibrated": self._calibrator.has_data(td.car_key),
+                 "power_curve_learned": self._power_curve.has_data(td.car_key),
++                "crossover_relearning": time.monotonic() < self._crossover_relearn_until,
+                 "log_status": self._logger.status,
+                 "shift_history": self._shift_history.snapshot(),
+                 "session_stats": self._session_stats.snapshot(),
+-- 
+2.43.0
+

@@ -11,8 +11,9 @@
       clickThrough: boolean
       compact?: boolean
       footer?: boolean
+      learnState?: string
     }>(),
-    { compact: false, footer: false },
+    { compact: false, footer: false, learnState: 'learning' },
   )
 
   const emit = defineEmits<{
@@ -22,6 +23,15 @@
 
   const { t } = useI18n()
   const modeLabel = computed(() => t(hudModeI18nKey(props.mode)))
+
+  const learnLabel = computed(() => {
+    const keys: Record<string, string> = {
+      learning: 'calibration.crossoverLearning',
+      learned: 'calibration.crossoverLearned',
+      relearning: 'calibration.crossoverRelearning',
+    }
+    return t(keys[props.learnState] ?? keys.learning)
+  })
 </script>
 
 <template>
@@ -39,6 +49,10 @@
         }}</span>
       </template>
     </div>
+
+    <span class="learn-pill" :class="learnState" :title="t('calibration.crossover')">{{
+      learnLabel
+    }}</span>
 
     <div class="actions interactive">
       <button
@@ -109,6 +123,7 @@
     align-items: center;
     gap: 6px;
     min-width: 0;
+    flex: 1;
   }
 
   .mode-dot {
@@ -141,6 +156,36 @@
 
   .state-name.shifting {
     color: #c4b5fd;
+  }
+
+  .learn-pill {
+    flex-shrink: 0;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    padding: 2px 7px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .learn-pill.learning {
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+
+  .learn-pill.learned {
+    color: #4ade80;
+    background: rgba(34, 197, 94, 0.14);
+    border-color: rgba(34, 197, 94, 0.4);
+  }
+
+  .learn-pill.relearning {
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.18);
+    border-color: rgba(59, 130, 246, 0.5);
   }
 
   .actions {

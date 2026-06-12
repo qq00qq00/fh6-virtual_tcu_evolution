@@ -3,7 +3,14 @@
   import { DRIVE_MODES } from '@virtual-tcu/shared/config/modes'
   import { modeBtnClass, REGIME_PILL } from '@virtual-tcu/shared/utils/mode-colors'
   import { toRefs } from 'vue'
-  import { badgeCalibrated, badgeLearning, cardSm, col, sectionTitle } from '../styles/ui'
+  import {
+    badgeCalibrated,
+    badgeLearning,
+    badgeRelearn,
+    cardSm,
+    col,
+    sectionTitle,
+  } from '../styles/ui'
   import { useModeSidebar } from './mode-sidebar'
 
   const props = withDefaults(
@@ -37,6 +44,25 @@
   } = useModeSidebar(telemetry)
 
   const isCalibrated = () => !!telemetry.value?.calibrated
+
+  const crossoverState = (): 'learning' | 'learned' | 'relearning' => {
+    const t = telemetry.value
+    if (t?.crossover_relearning) return 'relearning'
+    if (t?.calibrated && t?.power_curve_learned) return 'learned'
+    return 'learning'
+  }
+  const crossoverBadge = () => {
+    const s = crossoverState()
+    return s === 'relearning' ? badgeRelearn : s === 'learned' ? badgeCalibrated : badgeLearning
+  }
+  const crossoverLabel = () => {
+    const s = crossoverState()
+    return s === 'relearning'
+      ? 'calibration.crossoverRelearning'
+      : s === 'learned'
+        ? 'calibration.crossoverLearned'
+        : 'calibration.crossoverLearning'
+  }
 </script>
 
 <template>
@@ -92,6 +118,10 @@
       </span>
       <div class="text-tcu-txt-dim mt-2 text-[11px] leading-snug">
         {{ $t('calibration.hint') }}
+      </div>
+      <div class="border-tcu-border mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5">
+        <span class="text-tcu-txt-muted text-[11px]">{{ $t('calibration.crossover') }}</span>
+        <span :class="crossoverBadge()">{{ $t(crossoverLabel()) }}</span>
       </div>
     </div>
 

@@ -55,6 +55,10 @@
     @apply bg-warn/10 border-warn/30 text-warn inline-block rounded-sm border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase;
   }
 
+  .ui-badge-relearn {
+    @apply bg-accent-2/10 border-accent-2/40 text-accent-2 inline-block rounded-sm border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase;
+  }
+
   .ui-badge-danger {
     @apply bg-danger/10 border-danger/50 text-danger inline-block rounded-sm border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase;
   }

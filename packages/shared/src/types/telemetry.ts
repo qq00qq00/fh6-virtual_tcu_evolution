@@ -73,4 +73,5 @@ export interface TelemetrySnapshot {
   watchdog_stuck?: boolean
   log_status?: LogStatus
   power_curve_learned?: boolean
+  crossover_relearning?: boolean
 }

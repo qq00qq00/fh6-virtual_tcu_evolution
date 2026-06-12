@@ -34,6 +34,11 @@ from virtual_tcu.telemetry.fusion_logger import FusionSnapshotLogger
 from virtual_tcu.telemetry.logger import TelemetryLogger
 from virtual_tcu.telemetry.model import Telemetry
 
+# How long the HUD/Dashboard show the blue "relearning" status after the
+# crossover-upshift relearn hotkey is pressed, before falling back to the
+# live learned/learning state.
+CROSSOVER_RELEARN_FLASH_S = 5.0
+
 
 class TCULogic:
     def __init__(
@@ -88,6 +93,9 @@ class TCULogic:
         self._pending_upshift_until = 0.0
         self._upshift_cap_by_key: dict[tuple, int] = {}
         self._upshift_cap_set_at: dict[tuple, float] = {}
+        # monotonic deadline until which the crossover-upshift status reads as
+        # "relearning" (set by the relearn hotkey); 0 = not relearning.
+        self._crossover_relearn_until = 0.0
 
         self._reverse_lock_until = 0.0
         self._current_car_key: tuple | None = None
@@ -179,6 +187,40 @@ class TCULogic:
         self._profile_baseline_gear1.pop(ck, None)
         self._upshift_cap_by_key.pop(ck, None)
         self._upshift_cap_set_at.pop(ck, None)
+
+    def reset_crossover_learning(self) -> bool:
+        """Relearn the traction crossover-upshift model for the current car.
+
+        Mirrors the T-GT II ``reset-current`` behaviour: the crossover upshift
+        has no learned state of its own — it rides on the per-car gear ratios
+        and power curve — so "relearning" means wiping those two inputs (in
+        memory and in the persisted profile) and letting them rebuild from live
+        telemetry. The engine rpm envelope (rev limiter / redline) is kept, as
+        T-GT II keeps maxRpm/idleRpm. Arms the 5 s "relearning" status flash on
+        the HUD and Dashboard. Returns True if a current car was reset.
+        """
+        with self._data_lock:
+            ck = self._current_car_key
+            if ck is None or ck[0] <= 0:
+                return False
+            # In-memory: drop the crossover inputs and the caps derived from them.
+            self._calibrator._ratios.pop(ck, None)
+            self._calibrator._counts.pop(ck, None)
+            self._power_curve._fits.pop(ck, None)
+            self._power_curve._max_r.pop(ck, None)
+            self._profile_baseline_gear1.pop(ck, None)
+            self._upshift_cap_by_key.pop(ck, None)
+            self._upshift_cap_set_at.pop(ck, None)
+            # Persisted: strip the same two blocks so they don't reload; keep the
+            # rest of the profile (rev limiter envelope, metadata).
+            profile = self._profiles.get(ck)
+            if isinstance(profile, dict):
+                for stale in ("gear_ratios", "gear_counts", "power_curve"):
+                    profile.pop(stale, None)
+                self._profiles.set(ck, profile)
+            self._crossover_relearn_until = time.monotonic() + CROSSOVER_RELEARN_FLASH_S
+            print(f"[Crossover] relearn {storage_key(ck)}: cleared gear ratios + power curve")
+            return True
 
     def _resolve_pending_upshift(self, td: Telemetry, now: float) -> None:
         """Clear or cap upshift targets once the game confirms or rejects a shift."""
@@ -419,6 +461,7 @@ class TCULogic:
                     "calibrated": False,
                     "log_status": self._logger.status,
                     "power_curve_learned": False,
+                    "crossover_relearning": False,
                     "shift_history": [],
                     "session_stats": self._session_stats.snapshot(),
                     "watchdog_stuck": self._watchdog.check(),
@@ -459,6 +502,7 @@ class TCULogic:
                 "peak_g": self._peak_g,
                 "calibrated": self._calibrator.has_data(td.car_key),
                 "power_curve_learned": self._power_curve.has_data(td.car_key),
+                "crossover_relearning": time.monotonic() < self._crossover_relearn_until,
                 "log_status": self._logger.status,
                 "shift_history": self._shift_history.snapshot(),
                 "session_stats": self._session_stats.snapshot(),

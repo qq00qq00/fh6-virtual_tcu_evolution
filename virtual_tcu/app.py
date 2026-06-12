@@ -104,6 +104,11 @@ def setup_hotkeys(tcu: TCULogic, config: ConfigStore, logger: TelemetryLogger):
             "snapshot_dump",
             lambda: tcu.trigger_fusion_snapshot("manual_dump"),
         ),
+        (
+            config.get("hotkey_crossover_relearn", "f7"),
+            "crossover_relearn",
+            lambda: tcu.reset_crossover_learning(),
+        ),
     ]
 
     for key, name, fn in bindings:
