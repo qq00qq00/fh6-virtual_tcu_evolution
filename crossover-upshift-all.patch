@@ -1,0 +1,192 @@
+diff --git a/packages/shared/src/config/settings.ts b/packages/shared/src/config/settings.ts
+index 56162c8..568d4c8 100644
+--- a/packages/shared/src/config/settings.ts
++++ b/packages/shared/src/config/settings.ts
+@@ -14,6 +14,7 @@ export const FEATURE_TOGGLES: FeatureToggle[] = [
+   { key: 'feat_shift_advisor', i18nKey: 'shiftAdvisor', hintKey: 'shiftAdvisor' },
+   { key: 'feat_engine_brake', i18nKey: 'engineBrake', hintKey: 'engineBrake' },
+   { key: 'feat_power_curve', i18nKey: 'powerCurve', hintKey: 'powerCurve' },
++  { key: 'feat_crossover_upshift', i18nKey: 'crossoverUpshift', hintKey: 'crossoverUpshift' },
+   { key: 'feat_turbo_compensate', i18nKey: 'turboCompensate', hintKey: 'turboCompensate' },
+   { key: 'feat_airtime_lock', i18nKey: 'airtimeLock', hintKey: 'airtimeLock' },
+   { key: 'feat_transient_lock', i18nKey: 'transientLock', hintKey: 'transientLock' },
+diff --git a/packages/shared/src/locales/en.ts b/packages/shared/src/locales/en.ts
+index 56c49b0..2d1437e 100644
+--- a/packages/shared/src/locales/en.ts
++++ b/packages/shared/src/locales/en.ts
+@@ -207,6 +207,7 @@ export default {
+     shiftAdvisor: 'Shift Advisor (Manual)',
+     engineBrake: 'Engine Brake (descents)',
+     powerCurve: 'Power Curve Learning',
++    crossoverUpshift: 'Force Crossover Upshift',
+     turboCompensate: 'Turbo Lag Compensation',
+     airtimeLock: 'Airtime Lock (jumps)',
+     transientLock: 'Transient Lock (oversteer)',
+@@ -219,6 +220,7 @@ export default {
+       shiftAdvisor: 'Shows shift hints in Manual mode only; TCU does not auto-shift.',
+       engineBrake: 'Downshifts on downhill coast to use engine braking.',
+       powerCurve: 'Learns per-car torque/power; Race/Offroad use the optimal upshift point.',
++      crossoverUpshift: 'Sets the upshift point by tractive-force crossover once a car is learned (needs Power Curve). The WOT sliders become an early-shift floor.',
+       turboCompensate: 'Holds upshifts until boost builds on turbocharged cars.',
+       airtimeLock: 'Freezes shifting while airborne so jumps do not trigger shifts.',
+       transientLock: 'Pauses shifting during brief corrections, not sustained drifts.',
+diff --git a/packages/shared/src/locales/zh-CN.ts b/packages/shared/src/locales/zh-CN.ts
+index 105dc8d..5ef0d8f 100644
+--- a/packages/shared/src/locales/zh-CN.ts
++++ b/packages/shared/src/locales/zh-CN.ts
+@@ -205,6 +205,7 @@ export default {
+     shiftAdvisor: '换挡建议（手动）',
+     engineBrake: '发动机制动（下坡）',
+     powerCurve: '功率曲线学习',
++    crossoverUpshift: '牵引力交叉升档',
+     turboCompensate: '涡轮迟滞补偿',
+     airtimeLock: '腾空锁定',
+     transientLock: '横摆瞬态锁定',
+@@ -217,6 +218,7 @@ export default {
+       shiftAdvisor: '仅在手动模式下显示升/降档建议，不自动换挡。',
+       engineBrake: '下坡收油滑行时自动降档，利用发动机制动。',
+       powerCurve: '按车学习扭矩与功率曲线，赛道/越野模式用最佳升档点。',
++      crossoverUpshift: '车辆学习成熟后，用牵引力交叉点决定升档时机（需开启功率曲线）；全油门升档滑块退为早换下限。',
+       turboCompensate: '涡轮未建立增压时暂缓升档，等增压跟上再换。',
+       airtimeLock: '车轮离地时冻结换挡，避免跳跃中乱换档。',
+       transientLock: '短暂车身修正（非漂移）时暂停换挡，稳定后再决策。',
+diff --git a/virtual_tcu/config/constants.py b/virtual_tcu/config/constants.py
+index 7178173..ca5485b 100644
+--- a/virtual_tcu/config/constants.py
++++ b/virtual_tcu/config/constants.py
+@@ -21,6 +21,16 @@ class Cfg:
+     ANTI_STALL_RPM = 1100
+     MIN_SPEED_KMH = 12.0
+     OVER_REV_LIMIT = 1.02
++    # Tractive-force crossover upshift. When the per-car ratio + torque curve
++    # are warm enough, the optimal upshift point is found by force crossover
++    # (see PowerCurveDetector.crossover_upshift_ok) instead of a fixed rpm%.
++    # The configured WOT rpm% then acts as an *early floor*: crossover may push
++    # the realised point later (toward the limiter) but not earlier than this
++    # far below the slider, so the slider keeps its per-mode feel.
++    CROSSOVER_EARLY_BAND = 0.06
++    # Hard late ceiling: take the shift here regardless of the crossover test,
++    # so a wide-ratio gear never floats the limiter waiting for crossover.
++    UPSHIFT_LIMITER_CEIL = 0.99
+     IMPACT_DECEL_KMH = 25.0  # single-frame speed collapse this large = a crash/impact
+     REVERSE_HOLD_MS = 700
+     REVERSE_EXIT_MS = 500
+@@ -65,6 +75,7 @@ DEFAULTS = {
+     "feat_sound_beep": False,
+     "feat_discord_rpc": False,
+     "feat_power_curve": True,
++    "feat_crossover_upshift": True,
+     "feat_engine_brake": True,
+     "feat_turbo_compensate": True,
+     "feat_airtime_lock": True,
+diff --git a/virtual_tcu/learning/power_curve.py b/virtual_tcu/learning/power_curve.py
+index 1fe2fd9..63b0c5c 100644
+--- a/virtual_tcu/learning/power_curve.py
++++ b/virtual_tcu/learning/power_curve.py
+@@ -213,6 +213,69 @@ class PowerCurveDetector:
+             return max(blended, fallback)
+         return blended
+ 
++    def _torque_model(self, car_key: tuple):
++        """Return a callable ``r -> torque`` (rpm fraction 0..1, torque in the
++        same relative units the parabola was fitted on), or None when the fit
++        is missing, too cold, or not concave-down. The absolute scale cancels
++        in the crossover ratio, so only the *shape* needs to be right."""
++        fit = self._fits.get(car_key)
++        if fit is None or fit.n < self.MIN_SAMPLES:
++            return None
++        abc = fit.solve()
++        if abc is None:
++            return None
++        a, b, c = abc
++        if a >= -1e-6:  # not concave-down yet → no usable curve shape
++            return None
++
++        def torque(r: float) -> float:
++            r = max(0.0, min(1.0, r))
++            return a * r * r + b * r + c
++
++        return torque
++
++    def crossover_upshift_ok(
++        self,
++        td: Telemetry,
++        ratios: dict[int, float],
++        *,
++        conf_floor: float = 0.30,
++        hysteresis: float = 0.02,
++    ) -> bool | None:
++        """Tractive-force crossover test for an N -> N+1 upshift.
++
++        The max-acceleration shift point is where the wheel force the *next*
++        gear would make — at the rpm the engine drops to after the shift —
++        meets or beats the force the current gear is making now. Wheel force
++        is ``engine_torque * overall_reduction``; the learned rpm/kmh ratio is
++        proportional to that reduction, so ``F ~= torque(r) * ratio`` (the
++        unknown constants cancel in the comparison).
++
++        Returns True (shift now), False (hold) or **None** when the inputs are
++        too cold to decide — an unknown next-gear ratio (e.g. a brand-new car
++        that has never been in N+1) or a curve below ``conf_floor``. The caller
++        must fall back to the rpm-percent path on None; that fallback is what
++        lets an unlearned car still upshift out of 1st at all.
++        """
++        g = td.gear
++        r_cur = ratios.get(g)
++        r_up = ratios.get(g + 1)
++        if not r_cur or not r_up or r_up <= 0.0 or r_up >= r_cur:
++            return None
++        if self.confidence(td.car_key) < conf_floor:
++            return None
++        torque = self._torque_model(td.car_key)
++        if torque is None:
++            return None
++
++        r_now = td.rpm_pct
++        r_next = r_now * (r_up / r_cur)  # speed fixed → rpm scales with ratio
++        f_now = torque(r_now) * r_cur
++        f_next = torque(r_next) * r_up
++        if f_now <= 0.0:
++            return None
++        return f_next >= f_now * (1.0 + hysteresis)
++
+     def has_data(self, car_key: tuple) -> bool:
+         return self._peaks(car_key)[1] is not None
+ 
+diff --git a/virtual_tcu/logic/tcu.py b/virtual_tcu/logic/tcu.py
+index a075f89..6eeec19 100644
+--- a/virtual_tcu/logic/tcu.py
++++ b/virtual_tcu/logic/tcu.py
+@@ -1079,9 +1079,31 @@ class TCULogic:
+ 
+         fallback = self._config.get("race_up_wot", 94) / 100
+         target_pct = self._power_curve.optimal_upshift_rpm(td, fallback=fallback, offset=offset)
++
++        sub = "in band"
++        if self._config.get("feat_crossover_upshift", True):
++            ratios = self._calibrator.get_ratios(td.car_key)
++            decision = self._power_curve.crossover_upshift_ok(td, ratios)
++            if decision is not None:
++                # Warm car with a known next-gear ratio: tractive-force
++                # crossover picks the point, bounded below by the slider
++                # (early floor) and above by the limiter (late ceiling).
++                if td.rpm_pct >= Cfg.UPSHIFT_LIMITER_CEIL:
++                    sub = "limiter"
++                elif td.rpm_pct < target_pct - Cfg.CROSSOVER_EARLY_BAND:
++                    return False  # slider floor — refuse to short-shift
++                elif not decision:
++                    return False  # next gear can't carry the load yet — hold
++                else:
++                    sub = "crossover"
++                return self._shift_up(td, 300, "UPSHIFT", sub, downshift_lock_s=downshift_lock_s)
++
++        # Cold start (next-gear ratio unknown / curve still green) or feature
++        # disabled: original rpm-percent behaviour, unchanged — this is what
++        # lets an unlearned car upshift out of 1st without ratio data.
+         if td.rpm_pct < target_pct:
+             return False
+-        return self._shift_up(td, 300, "UPSHIFT", "in band", downshift_lock_s=downshift_lock_s)
++        return self._shift_up(td, 300, "UPSHIFT", sub, downshift_lock_s=downshift_lock_s)
+ 
+     def _should_engine_brake(self, td: Telemetry) -> bool:
+         if not self._config.get("feat_engine_brake"):

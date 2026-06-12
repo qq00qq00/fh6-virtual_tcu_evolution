@@ -211,6 +211,7 @@ export default {
     shiftAdvisor: 'Shift Advisor (Manual)',
     engineBrake: 'Engine Brake (descents)',
     powerCurve: 'Power Curve Learning',
+    crossoverUpshift: 'Force Crossover Upshift',
     turboCompensate: 'Turbo Lag Compensation',
     airtimeLock: 'Airtime Lock (jumps)',
     transientLock: 'Transient Lock (oversteer)',
@@ -223,6 +224,8 @@ export default {
       shiftAdvisor: 'Shows shift hints in Manual mode only; TCU does not auto-shift.',
       engineBrake: 'Downshifts on downhill coast to use engine braking.',
       powerCurve: 'Learns per-car torque/power; Race/Offroad use the optimal upshift point.',
+      crossoverUpshift:
+        'Sets the upshift point by tractive-force crossover once a car is learned (needs Power Curve). The WOT sliders become an early-shift floor.',
       turboCompensate: 'Holds upshifts until boost builds on turbocharged cars.',
       airtimeLock: 'Freezes shifting while airborne so jumps do not trigger shifts.',
       transientLock: 'Pauses shifting during brief corrections, not sustained drifts.',

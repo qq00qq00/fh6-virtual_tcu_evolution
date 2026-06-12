@@ -14,6 +14,7 @@ export const FEATURE_TOGGLES: FeatureToggle[] = [
   { key: 'feat_shift_advisor', i18nKey: 'shiftAdvisor', hintKey: 'shiftAdvisor' },
   { key: 'feat_engine_brake', i18nKey: 'engineBrake', hintKey: 'engineBrake' },
   { key: 'feat_power_curve', i18nKey: 'powerCurve', hintKey: 'powerCurve' },
+  { key: 'feat_crossover_upshift', i18nKey: 'crossoverUpshift', hintKey: 'crossoverUpshift' },
   { key: 'feat_turbo_compensate', i18nKey: 'turboCompensate', hintKey: 'turboCompensate' },
   { key: 'feat_airtime_lock', i18nKey: 'airtimeLock', hintKey: 'airtimeLock' },
   { key: 'feat_transient_lock', i18nKey: 'transientLock', hintKey: 'transientLock' },

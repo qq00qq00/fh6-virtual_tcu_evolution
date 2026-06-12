@@ -1123,9 +1123,31 @@ class TCULogic:
 
         fallback = self._config.get("race_up_wot", 94) / 100
         target_pct = self._power_curve.optimal_upshift_rpm(td, fallback=fallback, offset=offset)
+
+        sub = "in band"
+        if self._config.get("feat_crossover_upshift", True):
+            ratios = self._calibrator.get_ratios(td.car_key)
+            decision = self._power_curve.crossover_upshift_ok(td, ratios)
+            if decision is not None:
+                # Warm car with a known next-gear ratio: tractive-force
+                # crossover picks the point, bounded below by the slider
+                # (early floor) and above by the limiter (late ceiling).
+                if td.rpm_pct >= Cfg.UPSHIFT_LIMITER_CEIL:
+                    sub = "limiter"
+                elif td.rpm_pct < target_pct - Cfg.CROSSOVER_EARLY_BAND:
+                    return False  # slider floor — refuse to short-shift
+                elif not decision:
+                    return False  # next gear can't carry the load yet — hold
+                else:
+                    sub = "crossover"
+                return self._shift_up(td, 300, "UPSHIFT", sub, downshift_lock_s=downshift_lock_s)
+
+        # Cold start (next-gear ratio unknown / curve still green) or feature
+        # disabled: original rpm-percent behaviour, unchanged — this is what
+        # lets an unlearned car upshift out of 1st without ratio data.
         if td.rpm_pct < target_pct:
             return False
-        return self._shift_up(td, 300, "UPSHIFT", "in band", downshift_lock_s=downshift_lock_s)
+        return self._shift_up(td, 300, "UPSHIFT", sub, downshift_lock_s=downshift_lock_s)
 
     def _should_engine_brake(self, td: Telemetry) -> bool:
         if not self._config.get("feat_engine_brake"):

@@ -209,6 +209,7 @@ export default {
     shiftAdvisor: '换挡建议（手动）',
     engineBrake: '发动机制动（下坡）',
     powerCurve: '功率曲线学习',
+    crossoverUpshift: '牵引力交叉升档',
     turboCompensate: '涡轮迟滞补偿',
     airtimeLock: '腾空锁定',
     transientLock: '横摆瞬态锁定',
@@ -221,6 +222,8 @@ export default {
       shiftAdvisor: '仅在手动模式下显示升/降档建议，不自动换挡。',
       engineBrake: '下坡收油滑行时自动降档，利用发动机制动。',
       powerCurve: '按车学习扭矩与功率曲线，赛道/越野模式用最佳升档点。',
+      crossoverUpshift:
+        '车辆学习成熟后，用牵引力交叉点决定升档时机（需开启功率曲线）；全油门升档滑块退为早换下限。',
       turboCompensate: '涡轮未建立增压时暂缓升档，等增压跟上再换。',
       airtimeLock: '车轮离地时冻结换挡，避免跳跃中乱换档。',
       transientLock: '短暂车身修正（非漂移）时暂停换挡，稳定后再决策。',

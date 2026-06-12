@@ -21,6 +21,16 @@ class Cfg:
     ANTI_STALL_RPM = 1100
     MIN_SPEED_KMH = 12.0
     OVER_REV_LIMIT = 1.02
+    # Tractive-force crossover upshift. When the per-car ratio + torque curve
+    # are warm enough, the optimal upshift point is found by force crossover
+    # (see PowerCurveDetector.crossover_upshift_ok) instead of a fixed rpm%.
+    # The configured WOT rpm% then acts as an *early floor*: crossover may push
+    # the realised point later (toward the limiter) but not earlier than this
+    # far below the slider, so the slider keeps its per-mode feel.
+    CROSSOVER_EARLY_BAND = 0.06
+    # Hard late ceiling: take the shift here regardless of the crossover test,
+    # so a wide-ratio gear never floats the limiter waiting for crossover.
+    UPSHIFT_LIMITER_CEIL = 0.99
     IMPACT_DECEL_KMH = 25.0  # single-frame speed collapse this large = a crash/impact
     REVERSE_HOLD_MS = 700
     REVERSE_EXIT_MS = 500
@@ -65,6 +75,7 @@ DEFAULTS = {
     "feat_sound_beep": False,
     "feat_discord_rpc": False,
     "feat_power_curve": True,
+    "feat_crossover_upshift": True,
     "feat_engine_brake": True,
     "feat_turbo_compensate": True,
     "feat_airtime_lock": True,
