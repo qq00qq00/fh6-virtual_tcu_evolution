@@ -8,7 +8,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Forza-Love/fh6-virtual_tcu.git"
+    "url": "https://github.com/qq00qq00/fh6-virtual_tcu_evolution.git"
   },
   "main": "out/main/index.js",
   "scripts": {

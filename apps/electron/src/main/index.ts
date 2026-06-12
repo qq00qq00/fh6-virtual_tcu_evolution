@@ -400,8 +400,8 @@ function broadcastUpdater(payload: { kind: string; info?: unknown; error?: strin
 function setupAutoUpdater() {
   autoUpdater.setFeedURL({
     provider: 'github',
-    owner: 'Forza-Love',
-    repo: 'fh6-virtual_tcu',
+    owner: 'qq00qq00',
+    repo: 'fh6-virtual_tcu_evolution',
   })
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
