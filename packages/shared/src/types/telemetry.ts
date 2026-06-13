@@ -74,4 +74,8 @@ export interface TelemetrySnapshot {
   log_status?: LogStatus
   power_curve_learned?: boolean
   crossover_relearning?: boolean
+  crossover_learned?: boolean
+  learn_mature_gears?: number
+  learn_target_gears?: number
+  learn_progress?: number
 }

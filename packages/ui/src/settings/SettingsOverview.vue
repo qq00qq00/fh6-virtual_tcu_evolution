@@ -11,7 +11,7 @@
   function crossoverState(): 'learning' | 'learned' | 'relearning' {
     const tel = store.telemetry.value
     if (tel?.crossover_relearning) return 'relearning'
-    if (tel?.calibrated && tel?.power_curve_learned) return 'learned'
+    if (tel?.crossover_learned) return 'learned'
     return 'learning'
   }
   function crossoverTagType(): 'success' | 'warning' | 'info' {
@@ -20,11 +20,14 @@
   }
   function crossoverLabel(): string {
     const s = crossoverState()
-    return s === 'relearning'
-      ? t('calibration.crossoverRelearning')
-      : s === 'learned'
-        ? t('calibration.crossoverLearned')
-        : t('calibration.crossoverLearning')
+    if (s === 'relearning') return t('calibration.crossoverRelearning')
+    if (s === 'learned') return t('calibration.crossoverLearned')
+    const tel = store.telemetry.value
+    const total = Number(tel?.learn_target_gears ?? 0)
+    const done = Number(tel?.learn_mature_gears ?? 0)
+    return total > 0
+      ? t('calibration.crossoverProgress', { done, total })
+      : t('calibration.crossoverLearning')
   }
 
   function modeColor(id: string) {

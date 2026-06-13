@@ -1,5 +1,20 @@
 # Changelog
 
+## [13.4.0] - 2026-06-13
+
+### Changed
+
+- **Crossover "learned" status now reflects real gearbox coverage** — the green `LEARNED` badge no longer flips after a single 1→2 launch. Forza telemetry carries no gear-count field, so the status is gated on three things together: every gear up to the top has a *converged* ratio (≥5 samples, not a one-frame reading), the power curve is confident (`confidence ≥ 0.5`), and the top gear is *confirmed* — either by a rejected upshift (the existing per-car cap) or, as a fallback for Manual/cruising, by a driving plateau (no higher gear reached for 30 s of genuine driving, at/above 4th). The HUD chrome bar, Web dashboard gear-calibration card, and Electron overview now compute this on the backend and read one shared `crossover_learned` flag instead of each recomputing `calibrated && power_curve_learned`.
+- **Calibration badge shows progress** — while learning, the crossover badge reads `Learning 4/6` (matured gears / detected top gear) on the dashboard and settings overview, so the convergence is visible rather than a status that jumps straight to done. Full EN / zh-CN localisation.
+
+### Added
+
+- **pytest** — `test_learn_status.py` covers the new gating: a 1→2 launch is never "learned"; a full converged box with a proven cap is; low power-curve confidence blocks it; the plateau fallback works without a cap but is refused below 4th; and the high-water-mark tracker advances on reaching a new gear and resets its plateau clock.
+
+### Internal
+
+- `GearRatioCalibrator` gains `gear_sample_counts()`, `mature_gear_count()`, and `max_gear_seen()` accessors; `TCULogic` tracks `_max_gear_seen` / `_gear_plateau_s` per car and exposes `crossover_learned`, `learn_mature_gears`, `learn_target_gears`, and `learn_progress` in the telemetry snapshot.
+
 ## [13.3.0] - 2026-06-12
 
 ### Added

@@ -98,6 +98,23 @@ class GearRatioCalibrator:
     def has_data(self, car_key: tuple) -> bool:
         return car_key in self._ratios and len(self._ratios[car_key]) >= 2
 
+    def gear_sample_counts(self, car_key: tuple) -> dict[int, int]:
+        """Per-gear sample counts for *car_key* — how converged each gear is."""
+        return self._counts.get(car_key, {})
+
+    def mature_gear_count(self, car_key: tuple, min_samples: int = 5) -> int:
+        """Number of gears whose ratio has converged past outlier grace.
+
+        A gear with only one or two samples (e.g. a brief 1->2 launch) does not
+        count: its ratio is a single raw reading, not a settled estimate."""
+        return sum(1 for n in self._counts.get(car_key, {}).values() if n >= min_samples)
+
+    def max_gear_seen(self, car_key: tuple) -> int:
+        """Highest forward gear with any learned sample — a lower bound on the
+        car's real top gear (telemetry never reports the gear count directly)."""
+        counts = self._counts.get(car_key)
+        return max(counts) if counts else 0
+
     def dump(self, car_key: tuple) -> dict | None:
         """Serialise learned ratios for *car_key*, or None if no data."""
         if not self.has_data(car_key):

@@ -94,6 +94,7 @@ export default {
     hint: '根据遥测自动学习各档齿比，提升换挡精度。',
     crossover: '牵引力交叉升档',
     crossoverLearning: '学习中',
+    crossoverProgress: '学习中 {done}/{total}',
     crossoverLearned: '已学会',
     crossoverRelearning: '开始重学',
   },

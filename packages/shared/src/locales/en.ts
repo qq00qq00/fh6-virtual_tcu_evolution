@@ -96,6 +96,7 @@ export default {
     hint: 'Auto-learns gear ratios from telemetry. Improves shift accuracy.',
     crossover: 'Crossover upshift',
     crossoverLearning: 'Learning',
+    crossoverProgress: 'Learning {done}/{total}',
     crossoverLearned: 'Learned',
     crossoverRelearning: 'Relearning',
   },

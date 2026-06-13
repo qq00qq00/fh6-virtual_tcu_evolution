@@ -3,6 +3,7 @@
   import { DRIVE_MODES } from '@virtual-tcu/shared/config/modes'
   import { modeBtnClass, REGIME_PILL } from '@virtual-tcu/shared/utils/mode-colors'
   import { toRefs } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import {
     badgeCalibrated,
     badgeLearning,
@@ -44,24 +45,27 @@
   } = useModeSidebar(telemetry)
 
   const isCalibrated = () => !!telemetry.value?.calibrated
+  const { t } = useI18n()
 
   const crossoverState = (): 'learning' | 'learned' | 'relearning' => {
-    const t = telemetry.value
-    if (t?.crossover_relearning) return 'relearning'
-    if (t?.calibrated && t?.power_curve_learned) return 'learned'
+    const tel = telemetry.value
+    if (tel?.crossover_relearning) return 'relearning'
+    if (tel?.crossover_learned) return 'learned'
     return 'learning'
   }
   const crossoverBadge = () => {
     const s = crossoverState()
     return s === 'relearning' ? badgeRelearn : s === 'learned' ? badgeCalibrated : badgeLearning
   }
-  const crossoverLabel = () => {
+  const crossoverText = () => {
     const s = crossoverState()
-    return s === 'relearning'
-      ? 'calibration.crossoverRelearning'
-      : s === 'learned'
-        ? 'calibration.crossoverLearned'
-        : 'calibration.crossoverLearning'
+    if (s === 'relearning') return t('calibration.crossoverRelearning')
+    if (s === 'learned') return t('calibration.crossoverLearned')
+    const total = telemetry.value?.learn_target_gears ?? 0
+    const done = telemetry.value?.learn_mature_gears ?? 0
+    return total > 0
+      ? t('calibration.crossoverProgress', { done, total })
+      : t('calibration.crossoverLearning')
   }
 </script>
 
@@ -121,7 +125,7 @@
       </div>
       <div class="border-tcu-border mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5">
         <span class="text-tcu-txt-muted text-[11px]">{{ $t('calibration.crossover') }}</span>
-        <span :class="crossoverBadge()">{{ $t(crossoverLabel()) }}</span>
+        <span :class="crossoverBadge()">{{ crossoverText() }}</span>
       </div>
     </div>
 
