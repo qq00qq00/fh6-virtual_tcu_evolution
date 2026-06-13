@@ -12,6 +12,8 @@
       compact?: boolean
       footer?: boolean
       learnState?: string
+      learnMatureGears?: number
+      learnTargetGears?: number
     }>(),
     { compact: false, footer: false, learnState: 'learning' },
   )
@@ -25,12 +27,13 @@
   const modeLabel = computed(() => t(hudModeI18nKey(props.mode)))
 
   const learnLabel = computed(() => {
-    const keys: Record<string, string> = {
-      learning: 'calibration.crossoverLearning',
-      learned: 'calibration.crossoverLearned',
-      relearning: 'calibration.crossoverRelearning',
-    }
-    return t(keys[props.learnState] ?? keys.learning)
+    if (props.learnState === 'relearning') return t('calibration.crossoverRelearning')
+    if (props.learnState === 'learned') return t('calibration.crossoverLearned')
+    const total = Number(props.learnTargetGears ?? 0)
+    const done = Number(props.learnMatureGears ?? 0)
+    return total > 0
+      ? t('calibration.crossoverProgress', { done, total })
+      : t('calibration.crossoverLearning')
   })
 </script>
 

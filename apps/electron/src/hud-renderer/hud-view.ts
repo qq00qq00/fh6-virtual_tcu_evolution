@@ -75,6 +75,8 @@ export function useHudView(
     if (telemetry.value.crossover_learned) return 'learned'
     return 'learning'
   })
+  const learnMatureGears = computed(() => telemetry.value.learn_mature_gears ?? 0)
+  const learnTargetGears = computed(() => telemetry.value.learn_target_gears ?? 0)
 
   return {
     gearLabel,
@@ -92,6 +94,8 @@ export function useHudView(
     gearColor,
     gearStyle,
     crossoverLearnState,
+    learnMatureGears,
+    learnTargetGears,
   }
 }
 

@@ -23,6 +23,8 @@
     shiftAdvice: ShiftAdvice
     showShiftAdvisor: boolean
     crossoverLearnState: string
+    learnMatureGears?: number
+    learnTargetGears?: number
   }>()
 
   const emit = defineEmits<{
@@ -65,6 +67,8 @@
         :tcu-state="tcuState"
         :click-through="clickThrough"
         :learn-state="crossoverLearnState"
+        :learn-mature-gears="learnMatureGears"
+        :learn-target-gears="learnTargetGears"
         @toggle-click-through="emit('toggleClickThrough', $event)"
         @close="emit('close')"
       />

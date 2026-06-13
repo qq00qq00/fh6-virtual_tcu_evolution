@@ -1,5 +1,11 @@
 # Changelog
 
+## [13.4.1] - 2026-06-13
+
+### Fixed
+
+- **HUD overlay now shows crossover learning progress** — the in-game HUD pill read a bare "Learning" while the Web dashboard and settings overview showed `Learning x/y`. The progress (matured gears / detected top gear) is now threaded through to all three HUD templates (classic, racing, minimal) so the overlay matches the dashboard, e.g. `Learning 5/5`. EN / zh-CN.
+
 ## [13.4.0] - 2026-06-13
 
 ### Changed
