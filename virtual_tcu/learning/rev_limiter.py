@@ -22,14 +22,27 @@ class RevLimiterDetector:
     MIN_PEAK_PCT = 0.62
     PEAK_EPS = 40.0
     MIN_OSCILLATION = 150.0
+    # A real fuel cut COLLAPSES torque (no combustion) — over the sawtooth
+    # window the engine drops to near zero/negative torque at least once. A
+    # bogus "ceiling" produced by the shifter repeatedly upshifting at the same
+    # rpm shows full, steady torque there instead (the engine is still making
+    # peak power, it just keeps getting shifted). So a candidate is only a
+    # limiter if the MIN torque in the window has fallen below this fraction of
+    # the car's observed peak torque. Without this guard the detector learns a
+    # ceiling wherever the car happens to be upshifted, then that value is
+    # substituted as engine_max_rpm and locks in chronic early shifting.
+    LIMITER_TORQUE_COLLAPSE_RATIO = 0.45
 
     def __init__(self):
         self._redline: dict[tuple, float] = {}
         self._rpm_window: dict[tuple, deque[float]] = {}
+        self._torque_window: dict[tuple, deque[float]] = {}
+        self._peak_torque: dict[tuple, float] = {}
         self._peak_hold: dict[tuple, tuple] = {}
 
     def _reset(self, car: tuple):
         self._rpm_window.pop(car, None)
+        self._torque_window.pop(car, None)
         self._peak_hold.pop(car, None)
 
     def observe(self, td: Telemetry, last_downshift_time: float, now: float):
@@ -48,8 +61,15 @@ class RevLimiterDetector:
             self._reset(car)
             return
 
+        # Track the engine's peak (WOT) torque so the collapse test below has a
+        # reference for "the engine is still making power here".
+        if td.torque_nm > self._peak_torque.get(car, 0.0):
+            self._peak_torque[car] = td.torque_nm
+
         win = self._rpm_window.setdefault(car, deque(maxlen=self.WINDOW))
+        twin = self._torque_window.setdefault(car, deque(maxlen=self.WINDOW))
         win.append(td.current_rpm)
+        twin.append(td.torque_nm)
         if len(win) < self.WINDOW:
             return
 
@@ -69,6 +89,19 @@ class RevLimiterDetector:
         self._peak_hold[car] = (held_peak, held_frames)
 
         if held_frames >= self.STABLE_FRAMES:
+            # Power-collapse guard: a genuine fuel cut drives torque to
+            # near-zero/negative somewhere in the window. If the engine is still
+            # pulling hard (min torque stays well above a fraction of peak), this
+            # "ceiling" is just where the shifter keeps upshifting, NOT the
+            # limiter — refuse it, or we'd poison engine_max_rpm and lock in
+            # early shifts (the exact failure this detector caused on high-power
+            # cars). Mirrors the upstream "refuted by strong power" rule.
+            peak_tq = self._peak_torque.get(car, 0.0)
+            twin = self._torque_window.get(car)
+            if peak_tq <= 0.0 or twin is None or len(twin) < self.WINDOW:
+                return
+            if min(twin) > peak_tq * self.LIMITER_TORQUE_COLLAPSE_RATIO:
+                return  # engine still making power at this rpm → not a cut
             # Cutoff only ever rises: every confirmed bounce is a real
             # limiter sample, and the engine cannot exceed the limiter at
             # WOT. The highest confirmed bounce is the true cutoff, so a
