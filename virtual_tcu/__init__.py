@@ -1,6 +1,6 @@
 """Virtual TCU — external adaptive transmission controller for Forza Horizon 6."""
 
-__version__ = "13.5.2"
+__version__ = "13.5.3"
 
 __all__ = ["__version__", "main"]
 

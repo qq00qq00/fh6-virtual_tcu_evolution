@@ -102,6 +102,16 @@ class PowerCurveDetector:
     FULL_CONF_SAMPLES = 80
     MIN_SPREAD = 0.06
     GOOD_SPREAD = 0.16
+    # Spread sub-score now measures the rpm RANGE actually sampled, not the
+    # std-dev of the sample pile. A very fast car cruising at top speed dumps
+    # thousands of samples at one near-constant rpm, which collapses the std-dev
+    # (x_spread) and wrongly reads as "narrow data" even though acceleration
+    # swept the whole rev range — leaving the curve stuck below the confidence
+    # floor (so it never reads as learned and the crossover stays disabled).
+    # Range coverage is immune to that sample-count imbalance: a launch-to-
+    # limiter pull covers ~0.6-0.7 here regardless of how long it then cruises.
+    MIN_COVERAGE = 0.12
+    GOOD_COVERAGE = 0.40
     # Upshift timing needs samples near the real redline; mid-range-only fits
     # extrapolate a peak too early (common on RWD before a limiter pull).
     HIGH_RPM_COVERAGE = 0.78
@@ -110,6 +120,7 @@ class PowerCurveDetector:
     def __init__(self):
         self._fits: dict[tuple, _ParabolaFit] = {}
         self._max_r: dict[tuple, float] = {}
+        self._min_r: dict[tuple, float] = {}
 
     def _gear_ok(self, td: Telemetry) -> bool:
         if td.gear >= 2:
@@ -129,6 +140,13 @@ class PowerCurveDetector:
         prev_max = self._max_r.get(ck, 0.0)
         if r > prev_max:
             self._max_r[ck] = r
+        # Low end of the sampled range, over genuine pulls only (so part-throttle
+        # coasting doesn't anchor a spuriously low floor). Together with _max_r
+        # this is the rpm coverage the spread sub-score uses.
+        if td.throttle >= 0.70:
+            prev_min = self._min_r.get(ck)
+            if prev_min is None or r < prev_min:
+                self._min_r[ck] = r
         # Partial throttle and some slip still carry curve-shape info but
         # weigh less — the least-squares fit absorbs them as soft evidence.
         weight = 1.0
@@ -176,10 +194,12 @@ class PowerCurveDetector:
         n_conf = max(
             0.0, min(1.0, (fit.n - self.MIN_SAMPLES) / (self.FULL_CONF_SAMPLES - self.MIN_SAMPLES))
         )
-        s_conf = max(
-            0.0, min(1.0, (fit.x_spread - self.MIN_SPREAD) / (self.GOOD_SPREAD - self.MIN_SPREAD))
-        )
         max_r = self._max_r.get(car_key, 0.0)
+        min_r = self._min_r.get(car_key, max_r)
+        coverage = max(0.0, max_r - min_r)
+        s_conf = max(
+            0.0, min(1.0, (coverage - self.MIN_COVERAGE) / (self.GOOD_COVERAGE - self.MIN_COVERAGE))
+        )
         span = self.HIGH_RPM_COVERAGE - 0.40
         high_conf = max(0.0, min(1.0, (max_r - 0.40) / span)) if span > 0 else 0.0
         conf = n_conf * s_conf * high_conf
@@ -304,6 +324,9 @@ class PowerCurveDetector:
         max_r = self._max_r.get(car_key)
         if max_r is not None:
             data["max_r"] = max_r
+        min_r = self._min_r.get(car_key)
+        if min_r is not None:
+            data["min_r"] = min_r
         return data
 
     def load(self, car_key: tuple, data: dict):
@@ -313,3 +336,5 @@ class PowerCurveDetector:
         self._fits[car_key] = _ParabolaFit.from_dict(data)
         if "max_r" in data:
             self._max_r[car_key] = float(data["max_r"])
+        if "min_r" in data:
+            self._min_r[car_key] = float(data["min_r"])
