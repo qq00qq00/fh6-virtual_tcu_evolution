@@ -1,3 +1,4 @@
+from virtual_tcu.config.constants import Cfg
 from virtual_tcu.telemetry.model import Telemetry
 
 
@@ -160,7 +161,7 @@ class PowerCurveDetector:
             # Power still climbing at the limiter — high-rev NA engines
             # (e.g. BMW S54). The "peak" is effectively the redline:
             # shift as late as possible.
-            pp = 0.97
+            pp = 0.99
         else:
             disc = 4 * b * b - 12 * a * c
             if disc < 0:
@@ -170,7 +171,7 @@ class PowerCurveDetector:
                 roots = [(-2 * b + sq) / (6 * a), (-2 * b - sq) / (6 * a)]
                 cands = [r for r in roots if pt - 0.02 <= r <= 1.0]
                 pp = max(cands) if cands else min(pt + 0.10, 0.95)
-        pp = max(pt, min(0.97, pp))
+        pp = max(pt, min(0.99, pp))
 
         n_conf = max(
             0.0, min(1.0, (fit.n - self.MIN_SAMPLES) / (self.FULL_CONF_SAMPLES - self.MIN_SAMPLES))
@@ -203,7 +204,7 @@ class PowerCurveDetector:
         pt, pp, conf = self._peaks(td.car_key)
         if pp is None:
             return fallback
-        model = max(0.65, min(0.97, pp + offset))
+        model = max(0.65, min(0.99, pp + offset))
         # Blend: early low-confidence estimates lean on the fallback,
         # mature ones trust the model fully. Never upshift earlier than the
         # configured fallback while high-RPM coverage is still missing.
@@ -264,6 +265,13 @@ class PowerCurveDetector:
             return None
         if self.confidence(td.car_key) < conf_floor:
             return None
+        # Maturity gate: the parabola is only trustworthy near the limiter once
+        # the engine has actually been sampled there. Until then a mid-range-
+        # dominated fit fabricates a high-rpm roll-off and the crossover fires
+        # early — so defer to the rpm-percent path (which the caller drives up
+        # to CROSSOVER_MATURE_MAX_R) to harvest the missing top-end samples.
+        if not self.is_crossover_mature(td.car_key):
+            return None
         torque = self._torque_model(td.car_key)
         if torque is None:
             return None
@@ -278,6 +286,14 @@ class PowerCurveDetector:
 
     def has_data(self, car_key: tuple) -> bool:
         return self._peaks(car_key)[1] is not None
+
+    def is_crossover_mature(self, car_key: tuple) -> bool:
+        """True once the engine has been revved close enough to the limiter on
+        this car that the high-rpm end of the torque parabola is backed by real
+        samples. Below this the crossover test is disabled (see
+        crossover_upshift_ok) and the caller holds the upshift toward
+        ``Cfg.CROSSOVER_MATURE_MAX_R`` to collect the missing top-end data."""
+        return self._max_r.get(car_key, 0.0) >= Cfg.CROSSOVER_MATURE_MAX_R
 
     def dump(self, car_key: tuple) -> dict | None:
         """Serialise the parabola fit for *car_key*, or None if no data."""

@@ -25,9 +25,26 @@ class Cfg:
     # are warm enough, the optimal upshift point is found by force crossover
     # (see PowerCurveDetector.crossover_upshift_ok) instead of a fixed rpm%.
     # The configured WOT rpm% then acts as an *early floor*: crossover may push
-    # the realised point later (toward the limiter) but not earlier than this
-    # far below the slider, so the slider keeps its per-mode feel.
-    CROSSOVER_EARLY_BAND = 0.06
+    # the realised point later (toward the limiter) but never earlier than this.
+    #
+    # NOTE: this band used to be 0.06, which let the floor sit *below* peak
+    # power (target_pct - 0.06 == peak-power% - 3%), so the model could shift
+    # before peak power on every gear. The max-acceleration crossover is at or
+    # above peak power, so the floor must not undercut it. 0.0 pins the floor at
+    # the per-mode WOT target (peak-power% + offset), matching the upstream
+    # T-GT II behaviour (floor == peak-power rpm + margin). For peaky engines
+    # whose true crossover is below the floor, the crossover test is still the
+    # binding constraint, so this only removes premature sub-peak-power shifts.
+    CROSSOVER_EARLY_BAND = 0.0
+    # The crossover test is only trusted once the engine has actually been
+    # revved this close to the limiter on the current car. Below it the torque
+    # parabola is dominated by mid-range samples and fabricates a high-rpm
+    # roll-off, which makes the force crossover fire early; that early shift
+    # then starves the model of the very high-rpm samples that would correct it
+    # (a self-reinforcing loop). Holding the upshift toward this rpm during the
+    # learning phase harvests the top-end samples and breaks the loop, after
+    # which the crossover takes over. See PowerCurveDetector.is_crossover_mature.
+    CROSSOVER_MATURE_MAX_R = 0.93
     # Hard late ceiling: take the shift here regardless of the crossover test,
     # so a wide-ratio gear never floats the limiter waiting for crossover.
     UPSHIFT_LIMITER_CEIL = 0.99

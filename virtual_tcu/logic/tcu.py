@@ -1221,9 +1221,20 @@ class TCULogic:
                     sub = "crossover"
                 return self._shift_up(td, 300, "UPSHIFT", sub, downshift_lock_s=downshift_lock_s)
 
-        # Cold start (next-gear ratio unknown / curve still green) or feature
-        # disabled: original rpm-percent behaviour, unchanged — this is what
-        # lets an unlearned car upshift out of 1st without ratio data.
+        # Crossover feature on but undecided (cold start, or the model is still
+        # immature), or feature disabled: rpm-percent behaviour. While the
+        # crossover model is learning, hold the upshift toward
+        # CROSSOVER_MATURE_MAX_R so the engine actually reaches the top of its
+        # range and the high-rpm samples get collected — otherwise a low
+        # per-mode WOT slider (e.g. offroad 90%) would shift before the model
+        # ever matures and the crossover would never engage. This only raises
+        # the learning-phase target; once mature the crossover branch above
+        # takes over. The car still upshifts (just nearer the limiter), so the
+        # cold-start "upshift out of 1st without ratio data" path is preserved.
+        if self._config.get(
+            "feat_crossover_upshift", True
+        ) and not self._power_curve.is_crossover_mature(td.car_key):
+            target_pct = max(target_pct, Cfg.CROSSOVER_MATURE_MAX_R)
         if td.rpm_pct < target_pct:
             return False
         return self._shift_up(td, 300, "UPSHIFT", sub, downshift_lock_s=downshift_lock_s)
