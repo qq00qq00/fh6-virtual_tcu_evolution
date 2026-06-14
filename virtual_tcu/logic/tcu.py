@@ -52,6 +52,13 @@ LEARN_CONF_FLOOR = 0.5
 # without reaching a higher gear, and only at/above LEARN_MIN_TOP_FALLBACK.
 LEARN_PLATEAU_S = 30.0
 LEARN_MIN_TOP_FALLBACK = 4
+# A rejected upshift below UPSHIFT_CAP_HARD_FROM_GEAR is normally soft (retried,
+# in case it was a one-off missed shift on a car that really has more gears). But
+# a genuine top gear is rejected on EVERY attempt to push past it. After this
+# many confirmed rejections at the same gear with no successful upshift between,
+# treat the cap as the real top and stop retry-clearing it — so a short (<=5-
+# gear) box proves its top via the cap instead of needing a 30 s cruise plateau.
+CAP_CONFIRM_STICKY = 2
 
 
 class TCULogic:
@@ -107,6 +114,7 @@ class TCULogic:
         self._pending_upshift_until = 0.0
         self._upshift_cap_by_key: dict[tuple, int] = {}
         self._upshift_cap_set_at: dict[tuple, float] = {}
+        self._cap_confirm: dict[tuple, int] = {}
         # Highest forward gear seen per car + a plateau accumulator (driving
         # seconds since that high-water mark last advanced). With no top-gear
         # field in telemetry, this is how the "learned" badge knows the box has
@@ -207,6 +215,7 @@ class TCULogic:
         self._profile_baseline_gear1.pop(ck, None)
         self._upshift_cap_by_key.pop(ck, None)
         self._upshift_cap_set_at.pop(ck, None)
+        self._cap_confirm.pop(ck, None)
         self._max_gear_seen.pop(ck, None)
         self._gear_plateau_s.pop(ck, None)
 
@@ -233,6 +242,7 @@ class TCULogic:
             self._profile_baseline_gear1.pop(ck, None)
             self._upshift_cap_by_key.pop(ck, None)
             self._upshift_cap_set_at.pop(ck, None)
+            self._cap_confirm.pop(ck, None)
             self._max_gear_seen.pop(ck, None)
             self._gear_plateau_s.pop(ck, None)
             # Persisted: strip the same two blocks so they don't reload; keep the
@@ -257,15 +267,25 @@ class TCULogic:
                 ck = td.car_key
                 self._upshift_cap_by_key[ck] = 10
                 self._upshift_cap_set_at.pop(ck, None)
+                self._cap_confirm.pop(ck, None)  # gear advanced → not the top after all
             return
         if now >= self._pending_upshift_until:
             ck = td.car_key
             if ck[0] > 0:
-                self._upshift_cap_by_key[ck] = min(self._upshift_cap_by_key.get(ck, 10), td.gear)
-                if td.gear < Cfg.UPSHIFT_CAP_HARD_FROM_GEAR:
-                    self._upshift_cap_set_at[ck] = now
+                rejected_gear = td.gear
+                old_cap = self._upshift_cap_by_key.get(ck, 10)
+                self._upshift_cap_by_key[ck] = min(old_cap, rejected_gear)
+                # Confirm-count: a one-off rejection caps once (soft, retried);
+                # a real top gear is rejected every time we try to climb past it.
+                if old_cap >= 10 or rejected_gear == old_cap:
+                    self._cap_confirm[ck] = self._cap_confirm.get(ck, 0) + 1
                 else:
-                    self._upshift_cap_set_at.pop(ck, None)
+                    self._cap_confirm[ck] = 1  # cap dropped to a lower gear → restart
+                confirmed = self._cap_confirm[ck] >= CAP_CONFIRM_STICKY
+                if td.gear < Cfg.UPSHIFT_CAP_HARD_FROM_GEAR and not confirmed:
+                    self._upshift_cap_set_at[ck] = now  # soft: eligible for retry-clear
+                else:
+                    self._upshift_cap_set_at.pop(ck, None)  # hard or confirmed → sticky
             self._pending_upshift_from = None
             self._pending_upshift_until = 0.0
 
@@ -277,6 +297,8 @@ class TCULogic:
         cap = self._upshift_cap_by_key.get(ck, 10)
         if cap >= 10 or td.gear < cap:
             return
+        if self._cap_confirm.get(ck, 0) >= CAP_CONFIRM_STICKY:
+            return  # confirmed real top gear — never retry-clear
         if td.gear >= Cfg.UPSHIFT_CAP_HARD_FROM_GEAR:
             return
         set_at = self._upshift_cap_set_at.get(ck)
@@ -651,6 +673,7 @@ class TCULogic:
         if td.gear != self._prev_gear and td.gear > 0 and self._prev_gear > 0:
             if td.gear > self._prev_gear:
                 self._upshift_cap_by_key[td.car_key] = 10
+                self._cap_confirm.pop(td.car_key, None)
                 self._pending_upshift_from = None
                 self._pending_upshift_until = 0.0
             if not self._we_shifted:

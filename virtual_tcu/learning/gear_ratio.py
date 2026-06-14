@@ -14,6 +14,14 @@ class GearRatioCalibrator:
     OUTLIER_GRACE = 5  # samples before outlier rejection kicks in
     # Reject samples that would collapse spacing between adjacent gears.
     ORDER_TOLERANCE = 0.03
+    # Plausible rpm-per-km/h envelope for a valid gear-ratio sample. The lower
+    # bound used to be 15, which silently discarded the tall top gear of very
+    # fast cars: a hypercar pulling 410 km/h in 5th reads ~14 rpm/(km/h), below
+    # 15, so 5th never learned and the box was stuck "learning 4/5". 8.0 still
+    # rejects genuine garbage (it implies >500 km/h at idle) while admitting any
+    # real top gear. MIN_SPEED_KMH + the per-gear ordering check guard the rest.
+    RATIO_MIN_RPM_PER_KMH = 8.0
+    RATIO_MAX_RPM_PER_KMH = 500.0
 
     def __init__(self):
         self._ratios: dict[tuple, dict[int, float]] = {}
@@ -56,7 +64,7 @@ class GearRatioCalibrator:
         if td.rear_slip > 0.8 or td.front_slip > 0.8:
             return
         ratio = td.current_rpm / td.speed_kmh
-        if ratio < 15 or ratio > 500:
+        if ratio < self.RATIO_MIN_RPM_PER_KMH or ratio > self.RATIO_MAX_RPM_PER_KMH:
             return
 
         car_ratios = self._ratios.setdefault(ck, {})
